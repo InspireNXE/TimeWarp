@@ -47,6 +47,7 @@ import java.util.Set;
 
 @Plugin(id = "timewarp", name = "TimeWarp")
 public class TimeWarp {
+
     private static final Set<Task> SYNC_TASKS = Sets.newHashSet();
     public Storage storage;
     @Inject public Logger logger;
@@ -64,7 +65,8 @@ public class TimeWarp {
             final String name = world.getName();
             if (storage.getChildNode("sync.worlds." + name.toLowerCase() + ".enabled").getBoolean()) {
                 if (world.getDimension().getType().equals(DimensionTypes.OVERWORLD)) {
-                    final WorldSyncTask worldSyncTask = new WorldSyncTask(world,
+                    final WorldSyncTask worldSyncTask = new WorldSyncTask(
+                            world,
                             storage.getChildNode("sync.worlds." + name.toLowerCase() + ".timezone").getString("America/Chicago"),
                             storage.getChildNode("sync.worlds." + name.toLowerCase() + ".length").getLong(86400000));
                     SYNC_TASKS.add(Task.builder()

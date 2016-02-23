@@ -32,8 +32,6 @@ import ninja.leaping.configurate.ConfigurationOptions;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.plugin.PluginContainer;
-import org.spongepowered.api.world.DimensionType;
 import org.spongepowered.api.world.DimensionTypes;
 import org.spongepowered.api.world.World;
 
@@ -43,7 +41,6 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.stream.Collectors;
 
 public class Storage {
 
@@ -58,7 +55,7 @@ public class Storage {
 
             this.rootNode = this.loader.load(ConfigurationOptions.defaults().setHeader(
                     "For details regarding this configuration file please refer " +
-                    "to our wiki page <https://github.com/InspireNXE/WorldSync/wiki/>"));
+                            "to our wiki page <https://github.com/InspireNXE/WorldSync/wiki/>"));
             this.loader.save(rootNode);
         }
         this.rootNode = this.loader.load();

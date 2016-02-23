@@ -32,6 +32,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 public class WorldSyncTask implements Runnable {
+
     private final long dayInMilliseconds;
     private final long worldTicksInMilliseconds;
     private final World world;
