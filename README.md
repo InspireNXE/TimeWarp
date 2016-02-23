@@ -2,13 +2,13 @@ TimeWarp [![Build Status](https://travis-ci.org/InspireNXE/TimeWarp.svg?branch=m
 =========
 TimeWarp is a small plugin that opens up the ability to change the length of day in Minecraft. It is licensed under the [MIT License].
 
+* [Download]
 * [Discussion]
 * [Source]
 * [Issues]
 * [Wiki]
 * [Configuration]
 * [Donate]
-* [Download]
 
 ### Prerequisites
 * [Java] 8
@@ -17,7 +17,7 @@ TimeWarp is a small plugin that opens up the ability to change the length of day
 ### Features
 * Ability to change day length (default is 86,400,000 milliseconds, equivalent to a normal earth day)
 * Ability to choose the timezone to follow
-* Per-world settings
+* Per-world settings but only applies to Overworld dimension types
 * (**Planned**) Commands!
 
 ### Building
