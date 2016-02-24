@@ -42,7 +42,6 @@ import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.world.DimensionType;
-import org.spongepowered.api.world.DimensionTypes;
 import org.spongepowered.api.world.World;
 
 import java.io.File;
@@ -86,7 +85,7 @@ public class TimeWarp {
     }
 
     @Listener
-    public void onGameStartedServerEvent(GameStartedServerEvent event)  {
+    public void onGameStartedServerEvent(GameStartedServerEvent event) {
         for (World world : Sponge.getServer().getWorlds()) {
             // Only run logic for worlds that match allowed dimensions
             if (!ALLOWED_DIMENSION_TYPES.contains(world.getDimension().getType())) {
