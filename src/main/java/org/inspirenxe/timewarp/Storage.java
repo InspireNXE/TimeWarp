@@ -28,16 +28,14 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-import ninja.leaping.configurate.ConfigurationOptions;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
-import org.spongepowered.api.Sponge;
-import org.spongepowered.api.world.DimensionTypes;
-import org.spongepowered.api.world.World;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.spongepowered.api.plugin.PluginContainer;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -47,44 +45,36 @@ public class Storage {
     private ConfigurationLoader<CommentedConfigurationNode> loader;
     private CommentedConfigurationNode rootNode;
     private final Map<String, Object> defaultNodes = Maps.newTreeMap();
+    private final Logger logger;
 
-    public Storage(File configuration, ConfigurationLoader<CommentedConfigurationNode> loader) throws IOException {
+    public Storage(PluginContainer container, File configuration, ConfigurationLoader<CommentedConfigurationNode> loader) throws IOException {
+        logger = LoggerFactory.getLogger(container.getName() + " - Storage");
         this.loader = loader;
         if (!configuration.exists()) {
             configuration.createNewFile();
-
-            this.rootNode = this.loader.load(ConfigurationOptions.defaults().setHeader(
-                    "For details regarding this configuration file please refer " +
-                            "to our wiki page <https://github.com/InspireNXE/WorldSync/wiki/>"));
-            this.loader.save(rootNode);
+            save();
         }
-        this.rootNode = this.loader.load();
-
-        for (World world : Sponge.getServer().getWorlds()) {
-            if (!world.getDimension().getType().equals(DimensionTypes.OVERWORLD)) {
-                continue;
-            }
-            final String name = world.getName().toLowerCase();
-            registerDefaultNode("sync.worlds." + name + ".timezone", ZoneId.systemDefault().toString());
-            registerDefaultNode("sync.worlds." + name + ".enabled", true);
-            registerDefaultNode("sync.worlds." + name + ".length", 86400000);
-        }
+        rootNode = this.loader.load();
     }
 
-    public Storage load() throws IOException {
+    /**
+     * Loads the configuration file.
+     * @return Storage for chaining
+     */
+    public Storage load() {
         defaultNodes.entrySet().stream().filter(entry -> entry.getValue() != null).forEach(entry -> {
-            final CommentedConfigurationNode node = this.getChildNode(entry.getKey());
+            final CommentedConfigurationNode node = getChildNode(entry.getKey());
             if (node.getValue() == null) {
-                this.getChildNode(entry.getKey()).setValue(entry.getValue());
+                getChildNode(entry.getKey()).setValue(entry.getValue());
             }
         });
         final Queue<CommentedConfigurationNode> queue = Queues.newConcurrentLinkedQueue();
-        queue.add(this.rootNode);
+        queue.add(rootNode);
         while (!queue.isEmpty()) {
             final CommentedConfigurationNode node = queue.remove();
             if (node.getParent() != null && node.getPath() != null && node.getValue() != null) {
                 final String path = Joiner.on(",").skipNulls().join(node.getPath()).replace(",", ".");
-                if (!this.defaultNodes.containsKey(path)) {
+                if (!defaultNodes.containsKey(path)) {
                     node.setValue(null);
                 }
             }
@@ -94,14 +84,31 @@ public class Storage {
                 }
             }
         }
-        this.loader.save(rootNode);
-        this.loader.load();
+        save();
+        try {
+            loader.load();
+        } catch (IOException ex) {
+            logger.error("Unable to load configuration!", ex);
+        }
         return this;
     }
 
     /**
-     * Registers a node as a default node to compare against when loading.
-     * @param path The path to register
+     * Saves the configuration file.
+     * @return Storage for chaining
+     */
+    public Storage save() {
+        try {
+            loader.save(rootNode);
+        } catch (IOException ex) {
+            logger.error("Unable to save configuration!", ex);
+        }
+        return this;
+    }
+
+    /**
+     * Registers a default node. The configuration file is saved and loaded when a node is added.
+     * @param path The path to register, the path is split by a period (eg. path.to.node is path -> to -> node)
      * @param value The value to register
      */
     public void registerDefaultNode(String path, Object value) {
@@ -111,11 +118,13 @@ public class Storage {
             if (i < nodes.length - 1) {
                 currentPath.add(i, nodes[i]);
                 final String joinedPath = Joiner.on(",").skipNulls().join(currentPath).replace(",", ".");
-                this.defaultNodes.put(joinedPath, null);
+                defaultNodes.put(joinedPath, null);
             } else {
-                this.defaultNodes.put(path, value);
+                defaultNodes.put(path, value);
             }
         }
+        save();
+        load();
     }
 
     /**
@@ -124,6 +133,6 @@ public class Storage {
      * @return The {@link CommentedConfigurationNode}
      */
     public CommentedConfigurationNode getChildNode(String path) {
-        return this.rootNode.getNode((Object[]) path.split("\\."));
+        return rootNode.getNode((Object[]) path.split("\\."));
     }
 }
