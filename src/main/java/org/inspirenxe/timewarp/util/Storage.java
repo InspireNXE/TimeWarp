@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.inspirenxe.timewarp;
+package org.inspirenxe.timewarp.util;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -44,22 +44,40 @@ public class Storage {
 
     private ConfigurationLoader<CommentedConfigurationNode> loader;
     private CommentedConfigurationNode rootNode;
+    private final File configuration;
     private final Map<String, Object> defaultNodes = Maps.newTreeMap();
     private final Logger logger;
 
-    public Storage(PluginContainer container, File configuration, ConfigurationLoader<CommentedConfigurationNode> loader) throws IOException {
+    public Storage(PluginContainer container, File configuration, ConfigurationLoader<CommentedConfigurationNode> loader) {
         logger = LoggerFactory.getLogger(container.getName() + " - Storage");
         this.loader = loader;
+        this.configuration = configuration;
+        this.init();
+    }
+
+    /**
+     * Initializes the configuration file. File is created if non-existant.
+     * @return {@link Storage} for chaining.
+     */
+    public Storage init() {
         if (!configuration.exists()) {
-            configuration.createNewFile();
-            save();
+            try {
+                configuration.createNewFile();
+            } catch (IOException e) {
+                logger.error("Unable to create new configuration file!", e);
+            }
         }
-        rootNode = this.loader.load();
+        try {
+            rootNode = this.loader.load();
+        } catch (IOException e) {
+            logger.error("Unable to load configuration file!", e);
+        }
+        return this;
     }
 
     /**
      * Loads the configuration file.
-     * @return Storage for chaining
+     * @return {@link Storage} for chaining.
      */
     public Storage load() {
         defaultNodes.entrySet().stream().filter(entry -> entry.getValue() != null).forEach(entry -> {
@@ -72,12 +90,6 @@ public class Storage {
         queue.add(rootNode);
         while (!queue.isEmpty()) {
             final CommentedConfigurationNode node = queue.remove();
-            if (node.getParent() != null && node.getPath() != null && node.getValue() != null) {
-                final String path = Joiner.on(",").skipNulls().join(node.getPath()).replace(",", ".");
-                if (!defaultNodes.containsKey(path)) {
-                    node.setValue(null);
-                }
-            }
             if (node.hasMapChildren()) {
                 for (Map.Entry<Object, ? extends CommentedConfigurationNode> entry : node.getChildrenMap().entrySet()) {
                     queue.add(entry.getValue());
@@ -87,29 +99,35 @@ public class Storage {
         save();
         try {
             loader.load();
-        } catch (IOException ex) {
-            logger.error("Unable to load configuration!", ex);
+        } catch (IOException e) {
+            logger.error("Unable to load configuration!", e);
         }
         return this;
     }
 
     /**
      * Saves the configuration file.
-     * @return Storage for chaining
+     * @return {@link Storage} for chaining.
      */
     public Storage save() {
         try {
             loader.save(rootNode);
-        } catch (IOException ex) {
-            logger.error("Unable to save configuration!", ex);
+        } catch (IOException e) {
+            logger.error("Unable to save configuration!", e);
         }
         return this;
     }
 
     /**
-     * Registers a default node. The configuration file is saved and loaded when a node is added.
-     * @param path The path to register, the path is split by a period (eg. path.to.node is path -> to -> node)
-     * @param value The value to register
+     * Registers a default node. Calls {@link Storage#save()} and {@link Storage#load()}.
+     * @param path The path to register.
+     * <p>The path is split by a period for example "path.to.node" is the equivalent of...
+     * path {
+     *     to {
+     *         node=""
+     *     }
+     * }</p>
+     * @param value The value to register.
      */
     public void registerDefaultNode(String path, Object value) {
         final String[] nodes = path.split("\\.");
@@ -123,14 +141,14 @@ public class Storage {
                 defaultNodes.put(path, value);
             }
         }
-        save();
-        load();
+        this.save();
+        this.load();
     }
 
     /**
-     * Gets the node from the root node
-     * @param path The path to the node split by periods
-     * @return The {@link CommentedConfigurationNode}
+     * Gets the node from the root node.
+     * @param path The path to the node split by periods.
+     * @return The {@link CommentedConfigurationNode}.
      */
     public CommentedConfigurationNode getChildNode(String path) {
         return rootNode.getNode((Object[]) path.split("\\."));

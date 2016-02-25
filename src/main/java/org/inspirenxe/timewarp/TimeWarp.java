@@ -30,24 +30,26 @@ import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
-import org.inspirenxe.timewarp.tasks.WorldSyncTask;
+import org.inspirenxe.timewarp.util.Commands;
+import org.inspirenxe.timewarp.util.Storage;
+import org.inspirenxe.timewarp.world.WorldSync;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandResult;
+import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameConstructionEvent;
+import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GameLoadCompleteEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
-import org.spongepowered.api.scheduler.Task;
+import org.spongepowered.api.text.Text;
 import org.spongepowered.api.world.DimensionType;
 import org.spongepowered.api.world.World;
 
 import java.io.File;
-import java.io.IOException;
-import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -55,8 +57,8 @@ import java.util.Set;
 @Plugin(id = "timewarp", name = "TimeWarp")
 public class TimeWarp {
 
-    private static final Set<Task> SYNC_TASKS = Sets.newHashSet();
-    private static final Set<DimensionType> ALLOWED_DIMENSION_TYPES = Sets.newHashSet();
+    private static final Set<DimensionType> SUPPORTED_DIMENSION_TYPES = Sets.newHashSet();
+    private static final Set<WorldSync> ACTIVE_WORLD_SYNCS = Sets.newHashSet();
     public static TimeWarp INSTANCE;
     public Storage storage;
     @Inject public Logger logger;
@@ -67,59 +69,80 @@ public class TimeWarp {
     @Inject private ConfigurationLoader<CommentedConfigurationNode> loader;
 
     @Listener
-    public void onGameConstructionEvent(GameConstructionEvent event) throws IOException {
+    public void onGameConstructionEvent(GameConstructionEvent event) {
         INSTANCE = this;
-        storage = new Storage(container, configuration, loader).load();
-        storage.registerDefaultNode("sync.settings.dimensions", Arrays.asList("overworld"));
+        storage = new Storage(container, configuration, loader);
+        storage.registerDefaultNode("sync.settings.dimensions", Collections.singletonList("overworld"));
     }
-
 
     @Listener
     public void onGameLoadCompleteEvent(GameLoadCompleteEvent event) throws ObjectMappingException {
-        for (String dimensionType : storage.getChildNode("sync.settings.dimensions").getList(TypeToken.of(String.class))) {
-            Optional<DimensionType> dimensionTypeOpt = Sponge.getRegistry().getType(DimensionType.class, dimensionType.toLowerCase());
-            if (dimensionTypeOpt.isPresent()) {
-                ALLOWED_DIMENSION_TYPES.add(dimensionTypeOpt.get());
+        for (String type : storage.getChildNode("sync.settings.dimensions").getList(TypeToken.of(String.class))) {
+            Optional<DimensionType> optType = Sponge.getRegistry().getType(DimensionType.class, type.toLowerCase());
+            if (optType.isPresent()) {
+                SUPPORTED_DIMENSION_TYPES.add(optType.get());
             }
         }
     }
 
     @Listener
     public void onGameStartedServerEvent(GameStartedServerEvent event) {
+        this.createWorldSyncs();
+    }
+
+    @Listener
+    public void onGameInitializationEvent(GameInitializationEvent event) {
+        Commands.add(CommandSpec.builder()
+                .permission("timewarp.command.reload")
+                .description(Text.of("Reloads the configuration settings from disk."))
+                .executor((src, args) -> {
+                    this.createWorldSyncs();
+                    return CommandResult.success();
+                })
+                .build(), "reload");
+
+        Commands.register(container, container.getId(), "tw");
+    }
+
+    /**
+     * Creates a {@link WorldSync} for every applicable world.
+     */
+    private void createWorldSyncs() {
+        // Initialize the configuration
+        storage.init();
+
+        // Properly cancel all tasks before clearing the set.
+        for (WorldSync worldSync : getActiveWorldSyncs()) {
+            worldSync.task.cancel();
+        }
+
+        // Clear the set to ensure a fresh start.
+        ACTIVE_WORLD_SYNCS.clear();
+
         for (World world : Sponge.getServer().getWorlds()) {
-            // Only run logic for worlds that match allowed dimensions
-            if (!ALLOWED_DIMENSION_TYPES.contains(world.getDimension().getType())) {
+            if (!TimeWarp.getSupportedDimensionTypes().contains(world.getDimension().getType())) {
                 continue;
             }
-
-            final String name = world.getName().toLowerCase();
-
-            // Register default configuration settings
-            storage.registerDefaultNode("sync.worlds." + name + ".timezone", ZoneId.systemDefault().toString());
-            storage.registerDefaultNode("sync.worlds." + name + ".enabled", true);
-            storage.registerDefaultNode("sync.worlds." + name + ".length", 86400000);
-
-            // Create tasks for syncing for each world if enabled
-            if (storage.getChildNode("sync.worlds." + name + ".enabled").getBoolean()) {
-                final WorldSyncTask worldSyncTask = new WorldSyncTask(
-                        world,
-                        storage.getChildNode("sync.worlds." + name + ".timezone").getString("America/Chicago"),
-                        storage.getChildNode("sync.worlds." + name + ".length").getLong(86400000));
-                SYNC_TASKS.add(Task.builder()
-                        .name(name + " - TimeWarp Sync")
-                        .intervalTicks(1)
-                        .execute(worldSyncTask)
-                        .submit(container));
+            if (!storage.getChildNode("sync.worlds." + world.getName().toLowerCase() + ".enabled").getBoolean()) {
+                continue;
             }
+            ACTIVE_WORLD_SYNCS.add(new WorldSync(world.getName()));
         }
     }
 
-
-    public static Set<Task> getSyncTasks() {
-        return Collections.unmodifiableSet(SYNC_TASKS);
+    /**
+     * Gets the supported {@link DimensionType}s.
+     * @return An unmodifiable set of allowed {@link DimensionType}.
+     */
+    public static Set<DimensionType> getSupportedDimensionTypes() {
+        return Collections.unmodifiableSet(SUPPORTED_DIMENSION_TYPES);
     }
 
-    public static Set<DimensionType> getAllowedDimensionTypes() {
-        return Collections.unmodifiableSet(ALLOWED_DIMENSION_TYPES);
+    /**
+     * Gets the active {@link WorldSync}s.
+     * @return An unmodifiable set of active {@link WorldSync}.
+     */
+    public static Set<WorldSync> getActiveWorldSyncs() {
+        return Collections.unmodifiableSet(ACTIVE_WORLD_SYNCS);
     }
 }
