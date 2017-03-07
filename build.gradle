@@ -21,6 +21,7 @@ plugins {
     id 'org.spongepowered.plugin' version '0.8.1'
     id 'net.minecrell.vanillagradle.server' version '2.2-5'
     id 'com.github.hierynomus.license' version '0.13.1'
+    id 'signing'
 }
 
 apply plugin: 'org.spongepowered.mixin'
@@ -100,6 +101,7 @@ jar {
             'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
             'MixinConfigs': 'mixins.timewarp.json',
             'FMLCorePluginContainsFMLMod': 'true',
+            'ForceLoadAsMod': 'true'
     )
 }
 
@@ -107,4 +109,11 @@ idea {
     module {
         inheritOutputDirs = true
     }
+}
+
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
 }
