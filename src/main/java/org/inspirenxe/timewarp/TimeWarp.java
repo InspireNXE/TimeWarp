@@ -42,6 +42,7 @@ import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.action.SleepingEvent;
+import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameConstructionEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GameLoadCompleteEvent;
@@ -105,6 +106,11 @@ public class TimeWarp {
                 .build(), "reload");
 
         Commands.register(container, container.getId(), "tw");
+    }
+
+    @Listener
+    public void onGameReloadEvent(GameReloadEvent event) {
+        this.createWorldDays();
     }
 
     @Listener
