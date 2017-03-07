@@ -25,8 +25,8 @@
 package org.inspirenxe.timewarp.world;
 
 import org.inspirenxe.timewarp.TimeWarp;
-import org.inspirenxe.timewarp.daypart.Daypart;
-import org.inspirenxe.timewarp.daypart.DaypartType;
+import org.inspirenxe.timewarp.daypart.DayPart;
+import org.inspirenxe.timewarp.daypart.DayPartType;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.world.storage.WorldProperties;
 
@@ -44,7 +44,7 @@ public class WorldDay {
      * 2 = EVENING
      * 3 = NIGHT
      */
-    private final Daypart[] dayparts = new Daypart[4];
+    private final DayPart[] dayparts = new DayPart[4];
 
     public WorldDay(String worldName) {
         this.worldName = worldName;
@@ -59,21 +59,26 @@ public class WorldDay {
         final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldName);
         if (optProperties.isPresent()) {
             final String rootPath = "sync.worlds." + worldName.toLowerCase();
-            for (DaypartType type : DaypartType.values()) {
-                this.setDaypart(type, new Daypart(type, TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".dayparts." + type.name.toLowerCase())
-                        .getLong()));
+            for (DayPartType type : DayPartType.values()) {
+                long daypartValue = TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".dayparts." + type.name.toLowerCase()).getLong();
+                if (daypartValue != 0 && daypartValue < type.defaultLength) {
+                    TimeWarp.INSTANCE.logger.warn("Value [" + daypartValue + "] in [" + rootPath + "] for DayPart [" + type.name + "] is below the" +
+                    " default length for Minecraft [" + type.defaultLength + "] and will not be used. Use 0 to skip this daypart.");
+                    daypartValue = type.defaultLength;
+                }
+                this.setDayPart(type, new DayPart(type, daypartValue));
             }
         }
         return this;
     }
 
     /**
-     * Gets the {@link Daypart} from the {@link DaypartType}.
-     * @param type The {@link DaypartType} to get the {@link Daypart} from.
-     * @return The {@link Optional<Daypart>}.
+     * Gets the {@link DayPart} from the {@link DayPartType}.
+     * @param type The {@link DayPartType} to get the {@link DayPart} from.
+     * @return The {@link Optional<DayPart>}.
      */
-    public Optional<Daypart> getDaypart(DaypartType type) {
-        for (Daypart daypart : dayparts) {
+    public Optional<DayPart> getDayPart(DayPartType type) {
+        for (DayPart daypart : dayparts) {
             if (daypart.getType().equals(type)) {
                 return Optional.of(daypart);
             }
@@ -82,11 +87,11 @@ public class WorldDay {
     }
 
     /**
-     * Sets the daypart stored to the {@link Daypart} passed in.
-     * @param type The {@link DaypartType} to set.
-     * @param daypart The {@link Daypart} to set to.
+     * Sets the daypart stored to the {@link DayPart} passed in.
+     * @param type The {@link DayPartType} to set.
+     * @param daypart The {@link DayPart} to set to.
      */
-    public void setDaypart(DaypartType type, Daypart daypart) {
+    public void setDayPart(DayPartType type, DayPart daypart) {
         switch (type) {
             case NOON:
                 dayparts[1] = daypart;
@@ -108,20 +113,20 @@ public class WorldDay {
      */
     public long getDayLength() {
         long length = 0;
-        for (Daypart daypart : dayparts) {
+        for (DayPart daypart : dayparts) {
             length += daypart.getLength();
         }
         return length;
     }
 
     /**
-     * Gets the start time of the {@link Daypart}.
-     * @param type The {@link DaypartType} to get the start time from.
+     * Gets the start time of the {@link DayPart}.
+     * @param type The {@link DayPartType} to get the start time from.
      * @return The start time.
      */
-    public long getStartTime(DaypartType type) {
+    public long getStartTime(DayPartType type) {
         long start = 0;
-        for (Daypart daypart : dayparts) {
+        for (DayPart daypart : dayparts) {
             if (type.equals(daypart.getType())) {
                 return start;
             }
@@ -131,11 +136,11 @@ public class WorldDay {
     }
 
     /**
-     * Gets the end time of the {@link Daypart}.
-     * @param type The {@link DaypartType} to get the end time from.
+     * Gets the end time of the {@link DayPart}.
+     * @param type The {@link DayPartType} to get the end time from.
      * @return The end time.
      */
-    public long getEndTime(DaypartType type) {
+    public long getEndTime(DayPartType type) {
         long end = getDayLength();
         for (int i = dayparts.length - 1; i > 0; i--) {
             if (type.equals(dayparts[i].getType())) {

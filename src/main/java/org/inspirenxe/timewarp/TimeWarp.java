@@ -30,15 +30,18 @@ import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
+import org.inspirenxe.timewarp.api.IMixinWorldServer;
+import org.inspirenxe.timewarp.daypart.DayPartType;
 import org.inspirenxe.timewarp.util.Commands;
 import org.inspirenxe.timewarp.util.Storage;
-import org.inspirenxe.timewarp.world.WorldSync;
+import org.inspirenxe.timewarp.world.WorldDay;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.action.SleepingEvent;
 import org.spongepowered.api.event.game.state.GameConstructionEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GameLoadCompleteEvent;
@@ -48,6 +51,7 @@ import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.world.DimensionType;
 import org.spongepowered.api.world.World;
+import org.spongepowered.api.world.storage.WorldProperties;
 
 import java.io.File;
 import java.util.Collections;
@@ -58,7 +62,7 @@ import java.util.Set;
 public class TimeWarp {
 
     private static final Set<DimensionType> SUPPORTED_DIMENSION_TYPES = Sets.newHashSet();
-    private static final Set<WorldSync> ACTIVE_WORLD_SYNCS = Sets.newHashSet();
+    private static final Set<WorldDay> WORLD_DAYS = Sets.newHashSet();
     public static TimeWarp INSTANCE;
     public Storage storage;
     @Inject public Logger logger;
@@ -79,15 +83,13 @@ public class TimeWarp {
     public void onGameLoadCompleteEvent(GameLoadCompleteEvent event) throws ObjectMappingException {
         for (String type : storage.getChildNode("sync.settings.dimensions").getList(TypeToken.of(String.class))) {
             Optional<DimensionType> optType = Sponge.getRegistry().getType(DimensionType.class, type.toLowerCase());
-            if (optType.isPresent()) {
-                SUPPORTED_DIMENSION_TYPES.add(optType.get());
-            }
+            optType.ifPresent(SUPPORTED_DIMENSION_TYPES::add);
         }
     }
 
     @Listener
     public void onGameStartedServerEvent(GameStartedServerEvent event) {
-        this.createWorldSyncs();
+        this.createWorldDays();
     }
 
     @Listener
@@ -96,7 +98,8 @@ public class TimeWarp {
                 .permission("timewarp.command.reload")
                 .description(Text.of("Reloads the configuration settings from disk."))
                 .executor((src, args) -> {
-                    this.createWorldSyncs();
+                    this.createWorldDays();
+                    src.sendMessage(Text.of("TimeWarp reloaded."));
                     return CommandResult.success();
                 })
                 .build(), "reload");
@@ -104,29 +107,50 @@ public class TimeWarp {
         Commands.register(container, container.getId(), "tw");
     }
 
+    @Listener
+    public void onSleepingFinishPostEvent(SleepingEvent.Finish.Post event) {
+        Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId()).ifPresent(worldProperties -> worldProperties.setWorldTime(DayPartType.MORNING.defaultStartTime));
+    }
+
     /**
-     * Creates a {@link WorldSync} for every applicable world.
+     * Creates a {@link WorldDay} for every applicable world.
      */
-    private void createWorldSyncs() {
+    private void createWorldDays() {
         // Initialize the configuration
         storage.init();
 
-        // Properly cancel all tasks before clearing the set.
-        for (WorldSync worldSync : getActiveWorldSyncs()) {
-            worldSync.task.cancel();
-        }
-
         // Clear the set to ensure a fresh start.
-        ACTIVE_WORLD_SYNCS.clear();
+        WORLD_DAYS.clear();
 
         for (World world : Sponge.getServer().getWorlds()) {
             if (!TimeWarp.getSupportedDimensionTypes().contains(world.getDimension().getType())) {
                 continue;
             }
+
             if (!storage.getChildNode("sync.worlds." + world.getName().toLowerCase() + ".enabled").getBoolean()) {
                 continue;
             }
-            ACTIVE_WORLD_SYNCS.add(new WorldSync(world.getName()));
+
+            if (!Boolean.valueOf(world.getProperties().getGameRule("doDaylightCycle").get())) {
+                logger.warn("Unable to warp time for [" + world.getName() + "]. Please enable the daylight cycle (/gamerule doDaylightCycle true) " +
+                        "and reload TimeWarp. If this is intentional then please ignore this message.");
+            }
+
+            ((IMixinWorldServer) world).setTicksUntilNextIncrement(0L);
+
+            final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(world.getName());
+            if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
+                final String rootPath = "sync.worlds." + world.getName().toLowerCase();
+                TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".enabled", false);
+
+                for (DayPartType type : DayPartType.values()) {
+                    TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
+                }
+
+                if (TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".enabled").getBoolean()) {
+                    WORLD_DAYS.add(new WorldDay(world.getName()).init());
+                }
+            }
         }
     }
 
@@ -139,10 +163,10 @@ public class TimeWarp {
     }
 
     /**
-     * Gets the active {@link WorldSync}s.
-     * @return An unmodifiable set of active {@link WorldSync}.
+     * Gets all available {@link WorldDay}s
+     * @return An unmodifiable set of all {@link WorldDay}.
      */
-    public static Set<WorldSync> getActiveWorldSyncs() {
-        return Collections.unmodifiableSet(ACTIVE_WORLD_SYNCS);
+    public static Set<WorldDay> getWorldDays() {
+        return Collections.unmodifiableSet(WORLD_DAYS);
     }
 }

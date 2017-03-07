@@ -1,22 +1,29 @@
 buildscript {
     repositories {
-        mavenCentral()
         maven {
             name = 'forge'
             url = 'http://files.minecraftforge.net/maven'
         }
         maven {
-            url = 'https://plugins.gradle.org/m2/'
-        }        
+            name = 'sponge'
+            url = 'https://repo.spongepowered.org/maven'
+        }
     }
 
     dependencies {
-        classpath 'gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.12.1'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        classpath 'org.spongepowered:mixingradle:0.4-SNAPSHOT'
     }
 }
 
-apply plugin: 'java'
-apply plugin: 'com.github.hierynomus.license'
+plugins {
+    id 'java-library'
+    id 'org.spongepowered.plugin' version '0.8.1'
+    id 'net.minecrell.vanillagradle.server' version '2.2-5'
+    id 'com.github.hierynomus.license' version '0.13.1'
+}
+
+apply plugin: 'org.spongepowered.mixin'
 
 defaultTasks 'clean', 'licenseFormat', 'build'
 
@@ -35,8 +42,21 @@ repositories {
 }
 
 dependencies {
-    compile "org.spongepowered:spongeapi:${project.apiVersion}"
+    api "org.spongepowered:spongeapi:${project.apiVersion}"
+    api "org.spongepowered:mixin:${project.mixinVersion}"
 }
+
+license {
+    ext.name = project.name
+    ext.organization = organization
+    ext.url = url
+    header rootProject.file('HEADER.txt')
+    ignoreFailures true
+    strictCheck true
+    include '**/*.java'
+}
+
+build.dependsOn licenseFormat
 
 configure([compileJava, compileTestJava]) {
     options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
@@ -56,9 +76,35 @@ license {
     include '**/*.java'
     mapping {
         java = 'SLASHSTAR_STYLE'
-    }    
+    }
 }
 
 javadoc {
     options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+minecraft {
+    version = '1.11.2'
+    mappings = 'snapshot_20170210'
+    makeObfSourceJar = false
+}
+
+sourceSets {
+    main {
+        refMap = "mixins.timewarp.refmap.json"
+    }
+}
+
+jar {
+    manifest.attributes(
+            'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+            'MixinConfigs': 'mixins.timewarp.json',
+            'FMLCorePluginContainsFMLMod': 'true',
+    )
+}
+
+idea {
+    module {
+        inheritOutputDirs = true
+    }
 }

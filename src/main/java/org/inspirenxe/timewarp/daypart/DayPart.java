@@ -24,38 +24,51 @@
  */
 package org.inspirenxe.timewarp.daypart;
 
-import java.util.Optional;
+public class DayPart {
 
-public enum DaypartType {
-    MORNING("Morning", 1800, 0, 1800),
-    NOON("Noon", 12000, 1800, 13800),
-    EVENING("Evening", 1800, 13800, 15600),
-    NIGHT("Night", 8400, 15600, 24000);
+    private final DayPartType type;
+    private long length;
 
-    public final String name;
-    public final long defaultLength;
-    public final long defaultStartTime;
-    public final long defaultEndTime;
-    public final long defaultDayLength = 24000;
-
-    DaypartType(String name, long defaultLength, long defaultStartTime, long defaultEndTime) {
-        this.name = name;
-        this.defaultLength = defaultLength;
-        this.defaultStartTime = defaultStartTime;
-        this.defaultEndTime = defaultEndTime;
+    public DayPart(DayPartType type, long length) {
+        this.type = type;
+        this.setLength(length);
     }
 
     /**
-     * Gets the daypart type based on the time.
-     * @param time The time to use for matching the {@link DaypartType}.
-     * @return The {@link DaypartType} that matches the time of day.
+     * Gets the {@link DayPartType}.
+     * @return The daypart type.
      */
-    public static Optional<DaypartType> getTypeFromTime(long time) {
-        for (DaypartType type : DaypartType.values()) {
-            if (time >= type.defaultStartTime && time <= type.defaultEndTime) {
-                return Optional.of(type);
-            }
+    public DayPartType getType() {
+        return type;
+    }
+
+    /**
+     * Gets the custom length of the daypart.
+     * @return The custom daypart length.
+     */
+    public long getLength() {
+        return length;
+    }
+
+    /**
+     * Sets the custom length of the daypart, cannot go below zero.
+     * @param value The value to use for the daypart length.
+     */
+    public void setLength(long value) {
+        if (value < 0) {
+            value = 0;
         }
-        return Optional.empty();
+        length = value;
+    }
+
+    @Override
+    public String toString() {
+        return "DayPart{" +
+                "name=" + type.name +
+                ", length=" + length +
+                ", defaultLength=" + type.defaultLength +
+                ", defaultStartTime=" + type.defaultStartTime +
+                ", defaultEndTime=" + type.defaultEndTime +
+                '}';
     }
 }
