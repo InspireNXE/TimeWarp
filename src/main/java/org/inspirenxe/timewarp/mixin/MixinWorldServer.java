@@ -45,23 +45,44 @@ import java.util.Optional;
 public class MixinWorldServer implements IMixinWorldServer {
     private long ticksUntilIncrement = 0L;
 
-    @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/storage/WorldInfo;setWorldTime(J)V"))
+    @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/storage/WorldInfo;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(WorldInfo worldInfo, long value) {
+        incrementTime(Optional.empty(), Optional.ofNullable(worldInfo), value);
+    }
+
+    @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldServer;setWorldTime(J)V"), require = 0, expect = 0)
+    public void onIncrementTime(net.minecraft.world.WorldServer world, long value) {
+        incrementTime(Optional.ofNullable(world), Optional.empty(), value);
+    }
+
+    private void incrementTime(Optional<net.minecraft.world.WorldServer> optVanillaWorld, Optional<WorldInfo> optVanillaWorldInfo, long value) {
+        final Optional<WorldInfo> optTargetWorldInfo;
+
+        // Find our target
+        if (optVanillaWorld.isPresent()) {
+            optTargetWorldInfo = Optional.of(optVanillaWorld.get().getWorldInfo());
+        } else if (optVanillaWorldInfo.isPresent()) {
+            optTargetWorldInfo = optVanillaWorldInfo;
+        } else {
+            throw new IllegalArgumentException("Unable to get world info!");
+        }
+
         TimeWarp.getWorldDays().forEach(worldDay -> {
-            if (worldDay.worldName.equals(worldInfo.getWorldName())) {
-                Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldInfo.getWorldName());
+            if (worldDay.worldName.equals(optTargetWorldInfo.get().getWorldName())) {
+                final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
                 if (optProperties.isPresent()) {
-                    final long currentTime = optProperties.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
+                    final long currentTime = optProperties.get().getWorldTime();
                     final Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
 
                     if (optDayPartType.isPresent()) {
-                        Optional<DayPart> optDayPart = worldDay.getDayPart(optDayPartType.get());
+                        final Optional<DayPart> optDayPart = worldDay.getDayPart(optDayPartType.get());
+
                         if (optDayPart.isPresent()) {
                             if (optDayPart.get().getLength() == 0) {
-                                worldInfo.setWorldTime(optDayPartType.get().defaultEndTime + 1);
+                                optProperties.get().setWorldTime(optDayPartType.get().defaultEndTime + 1L);
                             } else if (ticksUntilIncrement <= 1) {
-                                worldInfo.setWorldTime(currentTime + 1L);
+                                optProperties.get().setWorldTime(currentTime + 1L);
 
                                 final long targetTimeScaled = scale(currentTime + 1L,
                                         optDayPartType.get().defaultStartTime,
@@ -82,17 +103,19 @@ public class MixinWorldServer implements IMixinWorldServer {
                     }
                 }
             }
-            final Optional<World> optWorld = Sponge.getServer().getWorld(worldInfo.getWorldName());
-            if (optWorld.isPresent()) {
-                final long totalTime = optWorld.get().getProperties().getTotalTime();
-                final long worldTime = optWorld.get().getProperties().getWorldTime();
-                final boolean doDaylightCycle = Boolean.valueOf(optWorld.get().getGameRule("doDaylightCycle").get());
-
-                optWorld.get().getPlayers().forEach(player -> {
-                    ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle));
-                });
-            }
         });
+
+        // Send time update packets to all players in this world
+        final Optional<World> optWorld = Sponge.getServer().getWorld(optTargetWorldInfo.get().getWorldName());
+        if (optWorld.isPresent()) {
+            final long totalTime = optWorld.get().getProperties().getTotalTime();
+            final long worldTime = optWorld.get().getProperties().getWorldTime();
+            final boolean doDaylightCycle = Boolean.valueOf(optWorld.get().getGameRule("doDaylightCycle").get());
+
+            optWorld.get().getPlayers().forEach(player -> {
+                ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle));
+            });
+        }
     }
 
     public long getTicksUntilNextIncrement() {

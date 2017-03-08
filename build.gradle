@@ -17,7 +17,6 @@ buildscript {
 }
 
 plugins {
-    id 'java-library'
     id 'org.spongepowered.plugin' version '0.8.1'
     id 'net.minecrell.vanillagradle.server' version '2.2-5'
     id 'com.github.hierynomus.license' version '0.13.1'
@@ -43,8 +42,8 @@ repositories {
 }
 
 dependencies {
-    api "org.spongepowered:spongeapi:${project.apiVersion}"
-    api "org.spongepowered:mixin:${project.mixinVersion}"
+    compile "org.spongepowered:spongeapi:${project.apiVersion}"
+    compile "org.spongepowered:mixin:${project.mixinVersion}"
 }
 
 license {
