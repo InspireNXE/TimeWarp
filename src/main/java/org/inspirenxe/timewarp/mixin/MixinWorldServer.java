@@ -47,28 +47,21 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/storage/WorldInfo;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(WorldInfo worldInfo, long value) {
-        incrementTime(Optional.empty(), Optional.ofNullable(worldInfo), value);
+        incrementTime(Optional.ofNullable(worldInfo), value);
     }
 
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldServer;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(net.minecraft.world.WorldServer world, long value) {
-        incrementTime(Optional.ofNullable(world), Optional.empty(), value);
+        incrementTime(Optional.of(world.getWorldInfo()), value);
     }
 
-    private void incrementTime(Optional<net.minecraft.world.WorldServer> optVanillaWorld, Optional<WorldInfo> optVanillaWorldInfo, long value) {
-        final Optional<WorldInfo> optTargetWorldInfo;
-
-        // Find our target
-        if (optVanillaWorld.isPresent()) {
-            optTargetWorldInfo = Optional.of(optVanillaWorld.get().getWorldInfo());
-        } else if (optVanillaWorldInfo.isPresent()) {
-            optTargetWorldInfo = optVanillaWorldInfo;
-        } else {
-            throw new IllegalArgumentException("Unable to get world info!");
+    private void incrementTime(Optional<WorldInfo> optWorldInfo, long value) {
+        if (!optWorldInfo.isPresent()) {
+            return;
         }
 
         TimeWarp.getWorldDays().forEach(worldDay -> {
-            if (worldDay.worldName.equals(optTargetWorldInfo.get().getWorldName())) {
+            if (worldDay.worldName.equals(optWorldInfo.get().getWorldName())) {
                 final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
                 if (optProperties.isPresent()) {
@@ -106,7 +99,7 @@ public class MixinWorldServer implements IMixinWorldServer {
         });
 
         // Send time update packets to all players in this world
-        final Optional<World> optWorld = Sponge.getServer().getWorld(optTargetWorldInfo.get().getWorldName());
+        final Optional<World> optWorld = Sponge.getServer().getWorld(optWorldInfo.get().getWorldName());
         if (optWorld.isPresent()) {
             final long totalTime = optWorld.get().getProperties().getTotalTime();
             final long worldTime = optWorld.get().getProperties().getWorldTime();
