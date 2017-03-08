@@ -65,7 +65,7 @@ public class MixinWorldServer implements IMixinWorldServer {
                 final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
                 if (optProperties.isPresent()) {
-                    final long currentTime = optProperties.get().getWorldTime();
+                    long currentTime = optProperties.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
                     final Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
 
                     if (optDayPartType.isPresent()) {
@@ -75,14 +75,14 @@ public class MixinWorldServer implements IMixinWorldServer {
                             if (optDayPart.get().getLength() == 0) {
                                 optProperties.get().setWorldTime(optDayPartType.get().defaultEndTime + 1L);
                             } else if (ticksUntilIncrement <= 1) {
-                                optProperties.get().setWorldTime(currentTime + 1L);
+                                optProperties.get().setWorldTime(++currentTime);
 
-                                final long targetTimeScaled = scale(currentTime + 1L,
+                                final long targetTimeScaled = scale(currentTime,
                                         optDayPartType.get().defaultStartTime,
                                         optDayPartType.get().defaultEndTime,
                                         worldDay.getStartTime(optDayPartType.get()),
                                         worldDay.getEndTime(optDayPartType.get()));
-                                final long nextTargetTimeScaled = scale(currentTime + 2L,
+                                final long nextTargetTimeScaled = scale(++currentTime,
                                         optDayPartType.get().defaultStartTime,
                                         optDayPartType.get().defaultEndTime,
                                         worldDay.getStartTime(optDayPartType.get()),

@@ -61,8 +61,9 @@ public class WorldDay {
             for (DayPartType type : DayPartType.values()) {
                 long daypartValue = TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".dayparts." + type.name.toLowerCase()).getLong();
                 if (daypartValue != 0 && daypartValue < type.defaultLength) {
-                    TimeWarp.INSTANCE.logger.warn("Value [" + daypartValue + "] in [" + rootPath + "] for DayPart [" + type.name + "] is below the" +
-                    " default length for Minecraft [" + type.defaultLength + "] and will not be used. Use 0 to skip this daypart.");
+                    TimeWarp.INSTANCE.logger.warn(String.format("Unable to use value [%1s] in [%2s] for DayPart [%3s] as the value is below "
+                            + "vanilla Minecraft length [%4s]. If you are trying to skip this DayPart please use 0 as the value.",
+                            daypartValue, rootPath, type.name, type.defaultLength));
                     daypartValue = type.defaultLength;
                 }
                 this.setDayPart(type, new DayPart(type, daypartValue));
