@@ -40,11 +40,12 @@ public class WorldDay {
     public final String worldName;
     /**
      * 0 = MORNING
-     * 1 = NOON
+     * 1 = DAY
      * 2 = EVENING
      * 3 = NIGHT
      */
     private final DayPart[] dayparts = new DayPart[4];
+    private long daysPassed = 0;
 
     public WorldDay(String worldName) {
         this.worldName = worldName;
@@ -93,7 +94,7 @@ public class WorldDay {
      */
     public void setDayPart(DayPartType type, DayPart daypart) {
         switch (type) {
-            case NOON:
+            case DAY:
                 dayparts[1] = daypart;
                 break;
             case EVENING:
@@ -149,5 +150,13 @@ public class WorldDay {
             end -= dayparts[i].getLength();
         }
         return end;
+    }
+
+    public long getDaysPassed() {
+        return this.daysPassed;
+    }
+
+    public void setDaysPassed(long daysPassed) {
+        this.daysPassed = daysPassed;
     }
 }

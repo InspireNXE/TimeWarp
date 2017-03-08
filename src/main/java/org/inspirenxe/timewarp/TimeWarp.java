@@ -24,6 +24,9 @@
  */
 package org.inspirenxe.timewarp;
 
+import static org.spongepowered.api.command.args.GenericArguments.optional;
+import static org.spongepowered.api.command.args.GenericArguments.world;
+
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
@@ -37,9 +40,11 @@ import org.inspirenxe.timewarp.util.Storage;
 import org.inspirenxe.timewarp.world.WorldDay;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.DefaultConfig;
+import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.action.SleepingEvent;
 import org.spongepowered.api.event.game.GameReloadEvent;
@@ -50,6 +55,7 @@ import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.world.DimensionType;
 import org.spongepowered.api.world.World;
 import org.spongepowered.api.world.storage.WorldProperties;
@@ -96,6 +102,30 @@ public class TimeWarp {
     @Listener
     public void onGameInitializationEvent(GameInitializationEvent event) {
         Commands.add(CommandSpec.builder()
+                .permission("timewarp.command.daypart")
+                .arguments(optional(world(Text.of("world"))))
+                .description(Text.of("Gets the current DayPart."))
+                .executor((src, args) -> {
+                    Optional<WorldProperties> optWorld = args.getOne("world");
+                    if (!optWorld.isPresent() && src instanceof Player) {
+                        optWorld = Optional.of(((Player) src).getWorld().getProperties());
+                    } else if (!optWorld.isPresent()) {
+                        throw new CommandException(Text.of("A world must be provided if command sender is not a player."));
+                    }
+
+                    final long currentTime = optWorld.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
+
+                    Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
+                    if (!optDayPartType.isPresent()) {
+                        throw new CommandException(Text.of("Unable to parse DayPart from time [", TextColors.GRAY, currentTime,TextColors.RED, "]"));
+                    }
+
+                    src.sendMessage(Text.of("Current DayPart is [", optDayPartType.get().color, optDayPartType.get().name, TextColors.RESET,
+                            "] based on time [", TextColors.GRAY, currentTime, TextColors.RESET, "]"));
+                    return CommandResult.success();
+                })
+                .build(), "daypart");
+        Commands.add(CommandSpec.builder()
                 .permission("timewarp.command.reload")
                 .description(Text.of("Reloads the configuration settings from disk."))
                 .executor((src, args) -> {
@@ -115,7 +145,17 @@ public class TimeWarp {
 
     @Listener
     public void onSleepingFinishPostEvent(SleepingEvent.Finish.Post event) {
-        Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId()).ifPresent(worldProperties -> worldProperties.setWorldTime(DayPartType.MORNING.defaultStartTime));
+        Optional<World> optWorld = Sponge.getServer().getWorld(event.getBed().getWorldUniqueId());
+
+        if (optWorld.isPresent()) {
+            for (WorldDay worldDay : WORLD_DAYS) {
+                if (worldDay.worldName.equals(optWorld.get().getName())) {
+                    Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
+                            .ifPresent(worldProperties -> worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH)
+                                    + DayPartType.DAY.defaultStartTime));
+                }
+            }
+        }
     }
 
     /**
