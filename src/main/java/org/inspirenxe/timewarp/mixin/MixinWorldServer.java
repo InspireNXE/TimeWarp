@@ -32,8 +32,8 @@ import org.inspirenxe.timewarp.TimeWarp;
 import org.inspirenxe.timewarp.api.IMixinWorldServer;
 import org.inspirenxe.timewarp.daypart.DayPart;
 import org.inspirenxe.timewarp.daypart.DayPartType;
+import org.inspirenxe.timewarp.world.WorldDay;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.world.World;
 import org.spongepowered.api.world.storage.WorldProperties;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -60,7 +60,7 @@ public class MixinWorldServer implements IMixinWorldServer {
             return;
         }
 
-        TimeWarp.getWorldDays().forEach(worldDay -> {
+        for (WorldDay worldDay : TimeWarp.getWorldDays()) {
             if (worldDay.worldName.equals(optWorldInfo.get().getWorldName())) {
                 final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
@@ -92,23 +92,23 @@ public class MixinWorldServer implements IMixinWorldServer {
                             } else {
                                 ticksUntilIncrement--;
                             }
+
+                            // Send time update packets to all players in this world
+                            final long totalTime = optProperties.get().getTotalTime();
+                            final long worldTime = optProperties.get().getWorldTime();
+                            final boolean doDaylightCycle = Boolean.valueOf(optProperties.get().getGameRule("doDaylightCycle").get());
+                            Sponge.getServer().getWorld(optWorldInfo.get().getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
+                                    ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+
+                            // We do not need to keep processing
+                            return;
                         }
                     }
                 }
             }
-        });
-
-        // Send time update packets to all players in this world
-        final Optional<World> optWorld = Sponge.getServer().getWorld(optWorldInfo.get().getWorldName());
-        if (optWorld.isPresent()) {
-            final long totalTime = optWorld.get().getProperties().getTotalTime();
-            final long worldTime = optWorld.get().getProperties().getWorldTime();
-            final boolean doDaylightCycle = Boolean.valueOf(optWorld.get().getGameRule("doDaylightCycle").get());
-
-            optWorld.get().getPlayers().forEach(player -> {
-                ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle));
-            });
         }
+
+        optWorldInfo.get().setWorldTime(optWorldInfo.get().getWorldTime() + 1L);
     }
 
     public long getTicksUntilNextIncrement() {
