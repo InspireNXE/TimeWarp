@@ -48,7 +48,6 @@ public class WorldDay {
 
     public WorldDay(String worldName) {
         this.worldName = worldName;
-        this.init();
     }
 
     /**
