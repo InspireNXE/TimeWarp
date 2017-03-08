@@ -14,7 +14,7 @@ TimeWarp is a small plugin that opens up the ability to change the length of day
 ### Building
 **Note:** If you do not have [Gradle] installed then use `./gradlew` for Unix systems or Git Bash and `gradlew.bat` for Windows systems in place of any `gradle` command.
 
-To build Enquiry, simply run `gradle`. The compiled jar is located in `./libs/`.
+To build this project, simply run `gradle`. The compiled jar is located in `./libs/`.
 
 [Commands]: https://ore.spongepowered.org/Grinch/TimeWarp/pages/Commands
 [Configuration]: https://ore.spongepowered.org/Grinch/TimeWarp/pages/Configuration
