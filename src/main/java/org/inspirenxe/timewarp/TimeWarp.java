@@ -59,7 +59,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 
-@Plugin(id = "timewarp", name = "TimeWarp")
+@Plugin(id = "timewarp", name = "TimeWarp", description = "Manipulate time itself and extend the time of day!")
 public class TimeWarp {
 
     private static final Set<DimensionType> SUPPORTED_DIMENSION_TYPES = Sets.newHashSet();
