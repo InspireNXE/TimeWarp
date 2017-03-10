@@ -155,7 +155,7 @@ public class TimeWarp {
                 if (worldDay.worldName.equals(optWorld.get().getName())) {
                     Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
                             .ifPresent(worldProperties -> worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH)
-                                    + DayPartType.DAY.defaultStartTime));
+                                    + DayPartType.DAY.defaultStartTime + 1));
                 }
             }
         }
