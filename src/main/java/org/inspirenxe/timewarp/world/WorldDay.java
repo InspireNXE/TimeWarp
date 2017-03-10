@@ -105,12 +105,9 @@ public class WorldDay {
      * @return The next available {@link Optional<DayPart>}, otherwise {@link Optional#empty()}.
      */
     public Optional<DayPart> getNextDayPart(DayPartType type) {
-        TimeWarp.INSTANCE.logger.warn("Attempting to find next daypart for type " + type.name);
-
         // Attempt to find the next daypart excluding the current one
         for (DayPart dayPart : dayparts) {
             if (dayPart.getType() != type && dayPart.getLength() != 0) {
-                TimeWarp.INSTANCE.logger.warn(dayPart.getType().name + " found and is valid with a length of " + dayPart.getLength());
                 return Optional.of(dayPart);
             }
         }
@@ -118,12 +115,9 @@ public class WorldDay {
         // Attempt to return the current daypart
         final Optional<DayPart> optDayPartCandidate = this.getDayPart(type);
         if (optDayPartCandidate.isPresent() && optDayPartCandidate.get().getLength() != 0) {
-            TimeWarp.INSTANCE.logger.warn(optDayPartCandidate.get().getType().name + " is reused and has valid length of " + optDayPartCandidate
-                    .get().getLength());
             return optDayPartCandidate;
         }
 
-        TimeWarp.INSTANCE.logger.warn("No dayparts found.");
         return Optional.empty();
     }
 
