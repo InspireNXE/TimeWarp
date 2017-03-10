@@ -88,6 +88,34 @@ public class WorldDay {
     }
 
     /**
+     * Gets the next available {@link DayPart} with a length that is not equal to 0.
+     * @param type The current {@link DayPartType}.
+     * @return The next available {@link Optional<DayPart>}, otherwise {@link Optional#empty()}.
+     */
+    public Optional<DayPart> getNextDayPart(DayPartType type) {
+        TimeWarp.INSTANCE.logger.warn("Attempting to find next daypart for type " + type.name);
+
+        // Attempt to find the next daypart excluding the current one
+        for (DayPart dayPart : dayparts) {
+            if (dayPart.getType() != type && dayPart.getLength() != 0) {
+                TimeWarp.INSTANCE.logger.warn(dayPart.getType().name + " found and is valid with a length of " + dayPart.getLength());
+                return Optional.of(dayPart);
+            }
+        }
+
+        // Attempt to return the current daypart
+        final Optional<DayPart> optDayPartCandidate = this.getDayPart(type);
+        if (optDayPartCandidate.isPresent() && optDayPartCandidate.get().getLength() != 0) {
+            TimeWarp.INSTANCE.logger.warn(optDayPartCandidate.get().getType().name + " is reused and has valid length of " + optDayPartCandidate
+                    .get().getLength());
+            return optDayPartCandidate;
+        }
+
+        TimeWarp.INSTANCE.logger.warn("No dayparts found.");
+        return Optional.empty();
+    }
+
+    /**
      * Sets the daypart stored to the {@link DayPart} passed in.
      * @param type The {@link DayPartType} to set.
      * @param daypart The {@link DayPart} to set to.
@@ -152,10 +180,18 @@ public class WorldDay {
         return end;
     }
 
+    /**
+     * Gets the current days passed in the world related to this.
+     * @return The current days passed.
+     */
     public long getDaysPassed() {
         return this.daysPassed;
     }
 
+    /**
+     * Sets the current days passed.
+     * @param daysPassed The current days passed.
+     */
     public void setDaysPassed(long daysPassed) {
         this.daysPassed = daysPassed;
     }

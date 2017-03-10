@@ -131,6 +131,9 @@ public class TimeWarp {
                 .executor((src, args) -> {
                     this.createWorldDays();
                     src.sendMessage(Text.of("TimeWarp reloaded."));
+                    if (src instanceof Player) {
+                        logger.info("TimeWarp reloaded by " + src.getName());
+                    }
                     return CommandResult.success();
                 })
                 .build(), "reload");

@@ -64,6 +64,7 @@ public class MixinWorldServer implements IMixinWorldServer {
     private void incrementTime(WorldInfo worldInfo) {
         for (WorldDay worldDay : TimeWarp.getWorldDays()) {
             if (worldDay.worldName.equals(worldInfo.getWorldName())) {
+                TimeWarp.INSTANCE.logger.debug("Debug!");
                 final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
                 if (optProperties.isPresent()) {
@@ -80,9 +81,9 @@ public class MixinWorldServer implements IMixinWorldServer {
 
                         if (optDayPart.isPresent()) {
                             if (optDayPart.get().getLength() == 0) {
-                                // Skip the daypart by going 1 tick into the next daypart
-                                optProperties.get().setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + optDayPartType.get()
-                                        .defaultEndTime + 1L);
+                                final Optional<DayPartType> optLastDayPartType = DayPartType.getTypeFromTime(currentTime - 1);
+                                worldDay.getNextDayPart(optLastDayPartType.get())
+                                        .ifPresent(dayPart -> optProperties.get().setWorldTime(dayPart.getType().defaultStartTime + 1));
                             } else if (ticksUntilIncrement <= 1) {
                                 // Tick the world time up by one
                                 optProperties.get().setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + ++currentTime);
