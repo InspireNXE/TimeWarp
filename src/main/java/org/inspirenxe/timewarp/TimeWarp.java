@@ -87,15 +87,12 @@ public class TimeWarp {
     }
 
     @Listener
-    public void onGameLoadCompleteEvent(GameLoadCompleteEvent event) throws ObjectMappingException {
+    public void onGameStartedServerEvent(GameStartedServerEvent event) throws ObjectMappingException {
         for (String type : storage.getChildNode("sync.settings.dimensions").getList(TypeToken.of(String.class))) {
             Optional<DimensionType> optType = Sponge.getRegistry().getType(DimensionType.class, type.toLowerCase());
             optType.ifPresent(SUPPORTED_DIMENSION_TYPES::add);
         }
-    }
 
-    @Listener
-    public void onGameStartedServerEvent(GameStartedServerEvent event) {
         this.createWorldDays();
     }
 
@@ -155,7 +152,7 @@ public class TimeWarp {
                 if (worldDay.worldName.equals(optWorld.get().getName())) {
                     Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
                             .ifPresent(worldProperties -> worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH)
-                                    + DayPartType.DAY.defaultStartTime + 1));
+                                    + worldDay.getWakeAtDayPart().defaultStartTime + 1));
                 }
             }
         }
@@ -176,10 +173,6 @@ public class TimeWarp {
                 continue;
             }
 
-            if (!storage.getChildNode("sync.worlds." + world.getName().toLowerCase() + ".enabled").getBoolean()) {
-                continue;
-            }
-
             if (!Boolean.valueOf(world.getProperties().getGameRule("doDaylightCycle").get())) {
                 logger.warn("Unable to warp time for [" + world.getName() + "]. Please enable the daylight cycle (/gamerule doDaylightCycle true) " +
                         "and reload TimeWarp. If this is intentional then please ignore this message.");
@@ -191,6 +184,7 @@ public class TimeWarp {
             if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
                 final String rootPath = "sync.worlds." + world.getName().toLowerCase();
                 TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".enabled", false);
+                TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
 
                 for (DayPartType type : DayPartType.values()) {
                     TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
@@ -201,6 +195,8 @@ public class TimeWarp {
                 }
             }
         }
+
+        TimeWarp.INSTANCE.storage.save();
     }
 
     /**

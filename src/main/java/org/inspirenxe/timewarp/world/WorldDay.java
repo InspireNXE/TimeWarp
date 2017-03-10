@@ -24,6 +24,8 @@
  */
 package org.inspirenxe.timewarp.world;
 
+import com.google.common.reflect.TypeToken;
+import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.inspirenxe.timewarp.TimeWarp;
 import org.inspirenxe.timewarp.daypart.DayPart;
 import org.inspirenxe.timewarp.daypart.DayPartType;
@@ -45,6 +47,7 @@ public class WorldDay {
      * 3 = NIGHT
      */
     private final DayPart[] dayparts = new DayPart[4];
+    private DayPartType wakeAtDayPart;
     private long daysPassed = 0;
 
     public WorldDay(String worldName) {
@@ -68,6 +71,15 @@ public class WorldDay {
                     daypartValue = type.defaultLength;
                 }
                 this.setDayPart(type, new DayPart(type, daypartValue));
+            }
+            final String wakeAtPath = rootPath + ".wake-at-daypart";
+            final String dayPartCandidate = TimeWarp.INSTANCE.storage.getChildNode(wakeAtPath).getString(DayPartType.DAY.name.toUpperCase()).toUpperCase();
+            try {
+                wakeAtDayPart = DayPartType.valueOf(dayPartCandidate);
+            } catch (IllegalArgumentException e) {
+                TimeWarp.INSTANCE.logger.warn("Unable to parse [" + dayPartCandidate + "] at [" + wakeAtPath + "]. Defaulting to DayPart [" +
+                        DayPartType.DAY.name.toUpperCase() + "]");
+                wakeAtDayPart = DayPartType.valueOf(DayPartType.DAY.name.toUpperCase());
             }
         }
         return this;
@@ -194,5 +206,13 @@ public class WorldDay {
      */
     public void setDaysPassed(long daysPassed) {
         this.daysPassed = daysPassed;
+    }
+
+    /**
+     * Gets the {@link DayPartType} to wake up at.
+     * @return The {@link DayPartType} to wake up at.
+     */
+    public DayPartType getWakeAtDayPart() {
+        return this.wakeAtDayPart;
     }
 }

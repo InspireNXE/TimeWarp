@@ -64,7 +64,6 @@ public class MixinWorldServer implements IMixinWorldServer {
     private void incrementTime(WorldInfo worldInfo) {
         for (WorldDay worldDay : TimeWarp.getWorldDays()) {
             if (worldDay.worldName.equals(worldInfo.getWorldName())) {
-                TimeWarp.INSTANCE.logger.debug("Debug!");
                 final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
 
                 if (optProperties.isPresent()) {
