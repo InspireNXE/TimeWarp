@@ -149,7 +149,7 @@ public class TimeWarp {
 
         if (optWorld.isPresent()) {
             for (WorldDay worldDay : WORLD_DAYS) {
-                if (worldDay.worldName.equals(optWorld.get().getName())) {
+                if (worldDay.worldName.equalsIgnoreCase(optWorld.get().getName())) {
                     Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
                             .ifPresent(worldProperties -> worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH)
                                     + worldDay.getWakeAtDayPart().defaultStartTime + 1));
