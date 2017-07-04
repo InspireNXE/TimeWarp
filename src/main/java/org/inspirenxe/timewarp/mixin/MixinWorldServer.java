@@ -46,7 +46,7 @@ public class MixinWorldServer implements IMixinWorldServer {
     private long ticksUntilIncrement = 0L;
 
     /**
-     * Targets 'this.worldInfo.setWorldTime' in WorldServer#tick. Required for Forge b2227 and below.
+     * Targets 'this.worldInfo.setWorldTime' in WorldServer#tick. Required for certain builds of Forge.
      */
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/storage/WorldInfo;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(WorldInfo worldInfo, long value) {
@@ -54,7 +54,7 @@ public class MixinWorldServer implements IMixinWorldServer {
     }
 
     /**
-     * Targets 'this.setWorldTime' in WorldServer#tick. Required for Forge b2228 and above.
+     * Targets 'this.setWorldTime' in WorldServer#tick. Required for certain builds of Forge.
      */
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldServer;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(net.minecraft.world.WorldServer world, long value) {

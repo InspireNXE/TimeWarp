@@ -11,15 +11,15 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
         classpath 'org.spongepowered:mixingradle:0.4-SNAPSHOT'
     }
 }
 
 plugins {
     id 'org.spongepowered.plugin' version '0.8.1'
-    id 'net.minecrell.vanillagradle.server' version '2.2-5'
-    id 'com.github.hierynomus.license' version '0.13.1'
+    id 'net.minecrell.vanillagradle.server' version '2.2-6'
+    id 'com.github.hierynomus.license' version '0.14.0'
     id 'signing'
 }
 
@@ -84,14 +84,14 @@ javadoc {
 }
 
 minecraft {
-    version = '1.11.2'
-    mappings = 'snapshot_20170210'
+    version = '1.12'
+    mappings = 'snapshot_20170614'
     makeObfSourceJar = false
 }
 
 sourceSets {
     main {
-        refMap = "mixins.timewarp.refmap.json"
+        ext.refMap = "mixins.timewarp.refmap.json"
     }
 }
 
