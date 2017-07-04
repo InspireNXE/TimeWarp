@@ -31,7 +31,8 @@ import java.util.Optional;
 
 public enum DayPartType {
     MORNING("Morning", 1800, 23200, 1000, TextColors.YELLOW),
-    DAY("Day", 12000, 1000, 13000, TextColors.AQUA),
+    DAY("Day", 10600, 1000, 11600, TextColors.AQUA),
+    DUSK("Dusk", 1400, 11600, 13000, TextColors.DARK_BLUE),
     EVENING("Evening", 1800, 13000, 14800, TextColors.LIGHT_PURPLE),
     NIGHT("Night", 8400, 14800, 23200, TextColors.DARK_PURPLE);
 

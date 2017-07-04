@@ -44,7 +44,7 @@ public class WorldDay {
      * 2 = EVENING
      * 3 = NIGHT
      */
-    private final DayPart[] dayparts = new DayPart[4];
+    private final DayPart[] dayparts = new DayPart[5];
     private DayPartType wakeAtDayPart;
     private long daysPassed = 0;
 
@@ -132,8 +132,11 @@ public class WorldDay {
             case EVENING:
                 dayparts[2] = daypart;
                 break;
-            case NIGHT:
+            case DUSK:
                 dayparts[3] = daypart;
+                break;
+            case NIGHT:
+                dayparts[4] = daypart;
                 break;
             default:
                 dayparts[0] = daypart;
