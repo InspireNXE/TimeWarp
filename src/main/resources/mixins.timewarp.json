@@ -2,6 +2,7 @@
     "package": "org.inspirenxe.timewarp.mixin",
     "refmap": "mixins.timewarp.refmap.json",
     "target": "@env(DEFAULT)",
+    "minVersion": "0.6.11",
     "compatibilityLevel": "JAVA_8",
     "mixins": [
         "MixinWorldServer"
