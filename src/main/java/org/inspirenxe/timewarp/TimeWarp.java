@@ -144,17 +144,16 @@ public class TimeWarp {
 
     @Listener
     public void onSleepingFinishPostEvent(SleepingEvent.Finish.Post event) {
-        Optional<World> optWorld = Sponge.getServer().getWorld(event.getBed().getWorldUniqueId());
+        final Optional<World> optWorld = Sponge.getServer().getWorld(event.getBed().getWorldUniqueId());
 
-        if (optWorld.isPresent()) {
-            for (WorldDay worldDay : WORLD_DAYS) {
-                if (worldDay.worldName.equalsIgnoreCase(optWorld.get().getName())) {
-                    Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
-                            .ifPresent(worldProperties -> worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH)
-                                    + worldDay.getWakeAtDayPart().defaultStartTime + 1));
-                }
-            }
-        }
+        optWorld.ifPresent(world ->
+                WORLD_DAYS.stream()
+                    .filter(worldDay -> worldDay.worldName.equalsIgnoreCase(world.getName()))
+                    .forEach(worldDay ->
+                            Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
+                                    .ifPresent(worldProperties ->
+                                        worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + worldDay
+                                                .getWakeAtDayPart().defaultStartTime + 1))));
     }
 
     /**

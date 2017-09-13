@@ -47,6 +47,8 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     /**
      * Targets 'this.worldInfo.setWorldTime' in WorldServer#tick. Required for certain builds of Forge.
+     * @author Steven Downer (Grinch)
+     * @reason Intercept and handle logic for time incrementing
      */
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/storage/WorldInfo;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(WorldInfo worldInfo, long value) {
@@ -55,6 +57,8 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     /**
      * Targets 'this.setWorldTime' in WorldServer#tick. Required for certain builds of Forge.
+     * @author Steven Downer (Grinch)
+     * @reason Intercept and handle logic for time incrementing
      */
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldServer;setWorldTime(J)V"), require = 0, expect = 0)
     public void onIncrementTime(net.minecraft.world.WorldServer world, long value) {
@@ -62,59 +66,63 @@ public class MixinWorldServer implements IMixinWorldServer {
     }
 
     private void incrementTime(WorldInfo worldInfo) {
-        for (WorldDay worldDay : TimeWarp.getWorldDays()) {
-            if (worldDay.worldName.equalsIgnoreCase(worldInfo.getWorldName())) {
-                final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(worldDay.worldName);
+        final Optional<WorldDay> optWorldDay = TimeWarp.getWorldDays().stream()
+                .filter(worldDay -> worldDay.worldName.equalsIgnoreCase(worldInfo.getWorldName()))
+                .findFirst();
 
-                if (optProperties.isPresent()) {
-                    // Set the days passed to the world day
-                    worldDay.setDaysPassed(optProperties.get().getWorldTime() / DayPartType.DEFAULT_DAY_LENGTH);
+        if (optWorldDay.isPresent()) {
+            final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(optWorldDay.get().worldName);
 
-                    // Get the current time remaining after we take away all full days
-                    long currentTime = optProperties.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
+            if (optProperties.isPresent()) {
 
-                    final Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
+                // Set the days passed to the world day
+                optWorldDay.get().setDaysPassed(optProperties.get().getWorldTime() / DayPartType.DEFAULT_DAY_LENGTH);
 
-                    if (optDayPartType.isPresent()) {
-                        final Optional<DayPart> optDayPart = worldDay.getDayPart(optDayPartType.get());
+                // Get the current time remaining after we take away all full days
+                long currentTime = optProperties.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
 
-                        if (optDayPart.isPresent()) {
-                            if (optDayPart.get().getLength() == 0) {
-                                final Optional<DayPartType> optLastDayPartType = DayPartType.getTypeFromTime(currentTime - 1);
-                                worldDay.getNextDayPart(optLastDayPartType.get())
-                                        .ifPresent(dayPart -> optProperties.get().setWorldTime(dayPart.getType().defaultStartTime + 1));
-                            } else if (ticksUntilIncrement <= 1) {
-                                // Tick the world time up by one
-                                optProperties.get().setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + ++currentTime);
+                final Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
 
-                                // Get the difference between our current time and our target time
-                                final long currentTimeScaled = scale(currentTime,
-                                        optDayPartType.get().defaultStartTime,
-                                        optDayPartType.get().defaultEndTime,
-                                        worldDay.getStartTime(optDayPartType.get()),
-                                        worldDay.getEndTime(optDayPartType.get()));
-                                final long targetTimeScaled = scale(++currentTime,
-                                        optDayPartType.get().defaultStartTime,
-                                        optDayPartType.get().defaultEndTime,
-                                        worldDay.getStartTime(optDayPartType.get()),
-                                        worldDay.getEndTime(optDayPartType.get()));
+                if (optDayPartType.isPresent()) {
+                    final Optional<DayPart> optDayPart = optWorldDay.get().getDayPart(optDayPartType.get());
 
-                                ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
-                            } else {
-                                // Tick down the time until we next increment the world time
-                                ticksUntilIncrement--;
-                            }
+                    if (optDayPart.isPresent()) {
+                        if (optDayPart.get().getLength() == 0) {
+                            // Skip the daypart
+                            final Optional<DayPartType> optLastDayPartType = DayPartType.getTypeFromTime(currentTime - 1);
+                            optLastDayPartType.ifPresent(dayPartType -> optWorldDay.get().getNextDayPart(dayPartType)
+                                    .ifPresent(dayPart -> optProperties.get().setWorldTime(dayPart.getType().defaultStartTime + 1)));
+                        } else if (ticksUntilIncrement <= 1) {
+                            // Tick the world time up by one
+                            optProperties.get().setWorldTime((optWorldDay.get().getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + ++currentTime);
 
-                            // Send time update packets to all players in this world
-                            final long totalTime = optProperties.get().getTotalTime();
-                            final long worldTime = optProperties.get().getWorldTime();
-                            final boolean doDaylightCycle = Boolean.valueOf(optProperties.get().getGameRule("doDaylightCycle").get());
-                            Sponge.getServer().getWorld(worldInfo.getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
-                                    ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+                            // Get the difference between our current time and our target time
+                            final long currentTimeScaled = scale(currentTime,
+                                    optDayPartType.get().defaultStartTime,
+                                    optDayPartType.get().defaultEndTime,
+                                    optWorldDay.get().getStartTime(optDayPartType.get()),
+                                    optWorldDay.get().getEndTime(optDayPartType.get()));
+                            final long targetTimeScaled = scale(++currentTime,
+                                    optDayPartType.get().defaultStartTime,
+                                    optDayPartType.get().defaultEndTime,
+                                    optWorldDay.get().getStartTime(optDayPartType.get()),
+                                    optWorldDay.get().getEndTime(optDayPartType.get()));
 
-                            // We do not need to keep processing
-                            return;
+                            ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
+                        } else {
+                            // Tick down the time until we next increment the world time
+                            ticksUntilIncrement--;
                         }
+
+                        // Send time update packets to all players in this world
+                        final long totalTime = optProperties.get().getTotalTime();
+                        final long worldTime = optProperties.get().getWorldTime();
+                        final boolean doDaylightCycle = Boolean.valueOf(optProperties.get().getGameRule("doDaylightCycle").orElse("false"));
+                        Sponge.getServer().getWorld(worldInfo.getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
+                                ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+
+                        // We do not need to continue
+                        return;
                     }
                 }
             }
@@ -142,7 +150,7 @@ public class MixinWorldServer implements IMixinWorldServer {
      * @param newEnd The new end time.
      * @return The scaled time.
      */
-    private long scale(long time, long originalStart, long originalEnd, long newStart, long newEnd) {
+    private static long scale(long time, long originalStart, long originalEnd, long newStart, long newEnd) {
         double scale = (double) (newEnd - newStart) / (originalEnd - originalStart);
         return (long) (newStart + ((time - originalStart) * scale));
     }

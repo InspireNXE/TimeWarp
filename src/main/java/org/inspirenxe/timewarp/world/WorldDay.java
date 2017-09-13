@@ -89,11 +89,16 @@ public class WorldDay {
      * @return The {@link Optional<DayPart>}.
      */
     public Optional<DayPart> getDayPart(DayPartType type) {
+        if (type == null) {
+            return Optional.empty();
+        }
+
         for (DayPart daypart : dayparts) {
             if (daypart.getType().equals(type)) {
                 return Optional.of(daypart);
             }
         }
+
         return Optional.empty();
     }
 
@@ -103,6 +108,10 @@ public class WorldDay {
      * @return The next available {@link Optional<DayPart>}, otherwise {@link Optional#empty()}.
      */
     public Optional<DayPart> getNextDayPart(DayPartType type) {
+        if (type == null) {
+            return Optional.empty();
+        }
+
         // Attempt to find the next daypart excluding the current one
         for (DayPart dayPart : dayparts) {
             if (dayPart.getType() != type && dayPart.getLength() != 0) {
