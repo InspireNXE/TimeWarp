@@ -24,9 +24,30 @@
  */
 package org.inspirenxe.timewarp.api;
 
+import net.minecraft.world.storage.WorldInfo;
+
 public interface IMixinWorldServer {
 
+    /**
+     * Gets the ticks until the next world time increment
+     * @return The ticks until next increment
+     */
     long getTicksUntilNextIncrement();
 
+    /**
+     * Sets the ticks until the next world time increment
+     * @param ticksUntilNextIncrement Ticks until next increment
+     */
     void setTicksUntilNextIncrement(long ticksUntilNextIncrement);
+
+    /**
+     * Clears TimeWarp cache for this world
+     */
+    void clearCache();
+
+    /**
+     * Updates the TimeWarp cache for this world
+     * @param worldInfo The world info for the world
+     */
+    void updateCache(WorldInfo worldInfo);
 }

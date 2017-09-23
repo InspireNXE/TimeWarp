@@ -177,6 +177,7 @@ public class TimeWarp {
             }
 
             ((IMixinWorldServer) world).setTicksUntilNextIncrement(0L);
+            ((IMixinWorldServer) world).clearCache();
 
             final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(world.getName());
             if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
