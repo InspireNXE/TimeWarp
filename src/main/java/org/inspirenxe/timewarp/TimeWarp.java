@@ -68,7 +68,7 @@ import java.util.Set;
 public class TimeWarp {
 
     private static final Set<DimensionType> SUPPORTED_DIMENSION_TYPES = Sets.newHashSet();
-    public static TimeWarp INSTANCE;
+    public static TimeWarp instance;
     public Storage storage;
     @Inject public Logger logger;
     @Inject public PluginContainer container;
@@ -79,7 +79,7 @@ public class TimeWarp {
 
     @Listener
     public void onGameConstructionEvent(GameConstructionEvent event) {
-        INSTANCE = this;
+        instance = this;
         storage = new Storage(container, configuration, loader);
         storage.registerDefaultNode("sync.settings.dimensions", Collections.singletonList("overworld"));
     }
@@ -143,13 +143,11 @@ public class TimeWarp {
 
     @Listener
     public void onSleepingFinishPostEvent(SleepingEvent.Finish.Post event) {
-        final Optional<World> optWorld = Sponge.getServer().getWorld(event.getBed().getWorldUniqueId());
-
-        if (optWorld.isPresent() && ((IMixinWorldServer) optWorld.get()).getCachedWorldDay().isPresent()) {
-            final WorldDay worldDay = ((IMixinWorldServer) optWorld.get()).getCachedWorldDay().get();
-            optWorld.get().getProperties().setWorldTime(
-                    (worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + worldDay.getWakeAtDayPart().defaultStartTime + 1);
-        }
+        event.getBed().getLocation().ifPresent(location -> {
+            final Optional<WorldDay> optWorldDay = ((IMixinWorldServer) location.getExtent()).getCachedWorldDay();
+            optWorldDay.ifPresent(worldDay -> location.getExtent().getProperties().setWorldTime(
+                    (worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + worldDay.getWakeAtDayPart().defaultStartTime + 1));
+        });
     }
 
     private void createWorldDays() {
@@ -172,20 +170,20 @@ public class TimeWarp {
             final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(world.getName());
             if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
                 final String worldRootPath = "sync.worlds." + world.getName().toLowerCase();
-                TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".enabled", false);
-                TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
+                TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".enabled", false);
+                TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
 
                 for (DayPartType type : DayPartType.values()) {
-                    TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
+                    TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
                 }
 
-                if (TimeWarp.INSTANCE.storage.getChildNode(worldRootPath + ".enabled").getBoolean()) {
+                if (TimeWarp.instance.storage.getChildNode(worldRootPath + ".enabled").getBoolean()) {
                     ((IMixinWorldServer) world).clearCache();
                 }
             }
         }
 
-        TimeWarp.INSTANCE.storage.save();
+        TimeWarp.instance.storage.save();
     }
 
     /**

@@ -61,9 +61,9 @@ public class WorldDay {
         if (optProperties.isPresent()) {
             final String rootPath = "sync.worlds." + worldName.toLowerCase();
             for (DayPartType type : DayPartType.values()) {
-                long daypartValue = TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".dayparts." + type.name.toLowerCase()).getLong();
+                long daypartValue = TimeWarp.instance.storage.getChildNode(rootPath + ".dayparts." + type.name.toLowerCase()).getLong();
                 if (daypartValue != 0 && daypartValue < type.defaultLength) {
-                    TimeWarp.INSTANCE.logger.warn(String.format("Unable to use value [%1s] in [%2s] for DayPart [%3s] as the value is below "
+                    TimeWarp.instance.logger.warn(String.format("Unable to use value [%1s] in [%2s] for DayPart [%3s] as the value is below "
                             + "vanilla Minecraft length [%4s]. If you are trying to skip this DayPart please use 0 as the value.",
                             daypartValue, rootPath, type.name, type.defaultLength));
                     daypartValue = type.defaultLength;
@@ -71,11 +71,11 @@ public class WorldDay {
                 this.setDayPart(type, new DayPart(type, daypartValue));
             }
             final String wakeAtPath = rootPath + ".wake-at-daypart";
-            final String dayPartCandidate = TimeWarp.INSTANCE.storage.getChildNode(wakeAtPath).getString(DayPartType.DAY.name.toUpperCase()).toUpperCase();
+            final String dayPartCandidate = TimeWarp.instance.storage.getChildNode(wakeAtPath).getString(DayPartType.DAY.name.toUpperCase()).toUpperCase();
             try {
                 wakeAtDayPart = DayPartType.valueOf(dayPartCandidate);
             } catch (IllegalArgumentException e) {
-                TimeWarp.INSTANCE.logger.warn("Unable to parse [" + dayPartCandidate + "] at [" + wakeAtPath + "]. Defaulting to DayPart [" +
+                TimeWarp.instance.logger.warn("Unable to parse [" + dayPartCandidate + "] at [" + wakeAtPath + "]. Defaulting to DayPart [" +
                         DayPartType.DAY.name.toUpperCase() + "]");
                 wakeAtDayPart = DayPartType.valueOf(DayPartType.DAY.name.toUpperCase());
             }

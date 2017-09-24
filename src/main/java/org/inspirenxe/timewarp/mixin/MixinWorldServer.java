@@ -131,8 +131,10 @@ public class MixinWorldServer implements IMixinWorldServer {
                         this.ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
 
                         // Clear cache
-                        this.clearDayPartCache();
-                        this.clearDayPartTypeCache();
+                        if (currentTime >= cachedDayPartType.defaultEndTime) {
+                            this.clearDayPartCache();
+                            this.clearDayPartTypeCache();
+                        }
                     } else {
                         // Tick down the time until we next increment the world time
                         this.ticksUntilIncrement--;
@@ -142,7 +144,7 @@ public class MixinWorldServer implements IMixinWorldServer {
                     final long totalTime = worldProperties.getTotalTime();
                     final long worldTime = worldProperties.getWorldTime();
                     final boolean doDaylightCycle = Boolean.valueOf(worldProperties.getGameRule("doDaylightCycle").orElse("false"));
-                    Sponge.getServer().getWorld(worldProperties.getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
+                    ((World) this).getPlayers().forEach(player ->
                             ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
 
                     // We do not need to continue
@@ -167,7 +169,7 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     @Override
     public void clearCache() {
-        TimeWarp.INSTANCE.logger.debug("Clearing all cache types for world [" + ((World) this).getName() + "]");
+        TimeWarp.instance.logger.debug("Clearing all cache types for world [" + ((World) this).getName() + "]");
         this.clearWorldDayCache();
         this.clearDayPartCache();
         this.clearDayPartTypeCache();
@@ -175,19 +177,19 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     @Override
     public void clearWorldDayCache() {
-        TimeWarp.INSTANCE.logger.debug("Clearing cache type [WorldDay] for world [" + ((World) this).getName() + "]");
+        TimeWarp.instance.logger.debug("Clearing cache type [WorldDay] for world [" + ((World) this).getName() + "]");
         this.cachedWorldDay = null;
     }
 
     @Override
     public void clearDayPartCache() {
-        TimeWarp.INSTANCE.logger.debug("Clearing cache type [DayPart] for world [" + ((World) this).getName() + "]");
+        TimeWarp.instance.logger.debug("Clearing cache type [DayPart] for world [" + ((World) this).getName() + "]");
         this.cachedDayPart = null;
     }
 
     @Override
     public void clearDayPartTypeCache() {
-        TimeWarp.INSTANCE.logger.debug("Clearing cache type [DayPartType] for world [" + ((World) this).getName() + "]");
+        TimeWarp.instance.logger.debug("Clearing cache type [DayPartType] for world [" + ((World) this).getName() + "]");
         this.cachedDayPartType = null;
     }
 
