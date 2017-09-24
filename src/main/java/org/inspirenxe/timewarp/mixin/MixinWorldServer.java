@@ -34,6 +34,7 @@ import org.inspirenxe.timewarp.daypart.DayPart;
 import org.inspirenxe.timewarp.daypart.DayPartType;
 import org.inspirenxe.timewarp.world.WorldDay;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.world.World;
 import org.spongepowered.api.world.storage.WorldProperties;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -44,6 +45,8 @@ import java.util.Optional;
 @Mixin(WorldServer.class)
 public class MixinWorldServer implements IMixinWorldServer {
     private WorldDay cachedWorldDay;
+    private DayPartType cachedDayPartType;
+    private DayPart cachedDayPart;
     private long ticksUntilIncrement = 0L;
 
     /**
@@ -67,70 +70,89 @@ public class MixinWorldServer implements IMixinWorldServer {
     }
 
     private void incrementTime(WorldInfo worldInfo, long originalValue) {
+        final WorldProperties worldProperties = (WorldProperties) worldInfo;
+
+        // Update our cache if needed
         if (this.cachedWorldDay == null) {
-            this.updateCache(worldInfo);
-        } else {
-            final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(cachedWorldDay.worldName);
+            this.cachedWorldDay = new WorldDay(worldProperties.getWorldName()).init();
+        }
 
-            if (optProperties.isPresent()) {
+        // Attempt to continue with our logic
+        if (this.cachedWorldDay != null) {
+            // Set the days passed to the world day
+            this.cachedWorldDay.setDaysPassed(worldProperties.getWorldTime() / DayPartType.DEFAULT_DAY_LENGTH);
 
-                // Set the days passed to the world day
-                this.cachedWorldDay.setDaysPassed(optProperties.get().getWorldTime() / DayPartType.DEFAULT_DAY_LENGTH);
+            // Get the current time remaining after we take away all full days
+            long currentTime = worldProperties.getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
 
-                // Get the current time remaining after we take away all full days
-                long currentTime = optProperties.get().getWorldTime() % DayPartType.DEFAULT_DAY_LENGTH;
+            // Update our cache if needed
+            if (this.cachedDayPartType == null) {
+                this.cachedDayPartType = DayPartType.getTypeFromTime(currentTime).orElse(null);
+            }
 
-                final Optional<DayPartType> optDayPartType = DayPartType.getTypeFromTime(currentTime);
+            // Attempt to continue with our logic
+            if (this.cachedDayPartType != null) {
 
-                if (optDayPartType.isPresent()) {
-                    final Optional<DayPart> optDayPart = this.cachedWorldDay.getDayPart(optDayPartType.get());
+                // Update our cache if needed
+                if (cachedDayPart == null) {
+                    this.cachedDayPart = this.cachedWorldDay.getDayPart(this.cachedDayPartType).orElse(null);
+                }
 
-                    if (optDayPart.isPresent()) {
-                        if (optDayPart.get().getLength() == 0) {
-                            // Skip the daypart
-                            final Optional<DayPartType> optLastDayPartType = DayPartType.getTypeFromTime(currentTime - 1);
-                            optLastDayPartType.ifPresent(dayPartType -> cachedWorldDay.getNextDayPart(dayPartType)
-                                    .ifPresent(dayPart -> optProperties.get().setWorldTime(dayPart.getType().defaultStartTime + 1)));
-                        } else if (this.ticksUntilIncrement <= 1) {
-                            // Tick the world time up by one
-                            optProperties.get().setWorldTime((this.cachedWorldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + ++currentTime);
+                // Attempt to continue with our logic
+                if (this.cachedDayPart != null) {
+                    if (this.cachedDayPart.getLength() == 0) {
+                        // Skip the daypart
+                        DayPartType.getTypeFromTime(currentTime - 1)
+                                .ifPresent(dayPartType -> cachedWorldDay.getNextDayPart(dayPartType)
+                                        .ifPresent(dayPart -> worldProperties.setWorldTime(dayPart.getType().defaultStartTime + 1)));
 
-                            // Get the difference between our current time and our target time
-                            final long currentTimeScaled = scale(currentTime,
-                                    optDayPartType.get().defaultStartTime,
-                                    optDayPartType.get().defaultEndTime,
-                                    this.cachedWorldDay.getStartTime(optDayPartType.get()),
-                                    this.cachedWorldDay.getEndTime(optDayPartType.get()));
-                            final long targetTimeScaled = scale(++currentTime,
-                                    optDayPartType.get().defaultStartTime,
-                                    optDayPartType.get().defaultEndTime,
-                                    this.cachedWorldDay.getStartTime(optDayPartType.get()),
-                                    this.cachedWorldDay.getEndTime(optDayPartType.get()));
-
-                            this.ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
-
-                            this.updateCache(worldInfo);
-                        } else {
-                            // Tick down the time until we next increment the world time
-                            this.ticksUntilIncrement--;
-                        }
-
-                        // Send time update packets to all players in this world
-                        final long totalTime = optProperties.get().getTotalTime();
-                        final long worldTime = optProperties.get().getWorldTime();
-                        final boolean doDaylightCycle = Boolean.valueOf(optProperties.get().getGameRule("doDaylightCycle").orElse("false"));
-                        Sponge.getServer().getWorld(worldInfo.getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
-                                ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+                        // Clear cache
+                        this.clearDayPartCache();
+                        this.clearDayPartTypeCache();
 
                         // We do not need to continue
                         return;
+                    } else if (this.ticksUntilIncrement <= 1) {
+                        // Tick the world time up by one
+                        worldProperties.setWorldTime((this.cachedWorldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + ++currentTime);
+
+                        // Get the difference between our current time and our target time
+                        final long currentTimeScaled = scale(currentTime,
+                                this.cachedDayPartType.defaultStartTime,
+                                this.cachedDayPartType.defaultEndTime,
+                                this.cachedWorldDay.getStartTime(this.cachedDayPartType),
+                                this.cachedWorldDay.getEndTime(this.cachedDayPartType));
+                        final long targetTimeScaled = scale(++currentTime,
+                                this.cachedDayPartType.defaultStartTime,
+                                this.cachedDayPartType.defaultEndTime,
+                                this.cachedWorldDay.getStartTime(this.cachedDayPartType),
+                                this.cachedWorldDay.getEndTime(this.cachedDayPartType));
+
+                        this.ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
+
+                        // Clear cache
+                        this.clearDayPartCache();
+                        this.clearDayPartTypeCache();
+                    } else {
+                        // Tick down the time until we next increment the world time
+                        this.ticksUntilIncrement--;
                     }
+
+                    // Send time update packets to all players in this world
+                    final long totalTime = worldProperties.getTotalTime();
+                    final long worldTime = worldProperties.getWorldTime();
+                    final boolean doDaylightCycle = Boolean.valueOf(worldProperties.getGameRule("doDaylightCycle").orElse("false"));
+                    Sponge.getServer().getWorld(worldProperties.getWorldName()).ifPresent(world -> world.getPlayers().forEach(player ->
+                            ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+
+                    // We do not need to continue
+                    return;
                 }
             }
         }
 
         // Tick the world time as normal
-        worldInfo.setWorldTime(worldInfo.getWorldTime() + originalValue);
+        worldProperties.setWorldTime(worldProperties.getWorldTime() + originalValue);
     }
 
     @Override
@@ -145,14 +167,43 @@ public class MixinWorldServer implements IMixinWorldServer {
 
     @Override
     public void clearCache() {
+        TimeWarp.INSTANCE.logger.debug("Clearing all cache types for world [" + ((World) this).getName() + "]");
+        this.clearWorldDayCache();
+        this.clearDayPartCache();
+        this.clearDayPartTypeCache();
+    }
+
+    @Override
+    public void clearWorldDayCache() {
+        TimeWarp.INSTANCE.logger.debug("Clearing cache type [WorldDay] for world [" + ((World) this).getName() + "]");
         this.cachedWorldDay = null;
     }
 
     @Override
-    public void updateCache(WorldInfo worldInfo) {
-        this.cachedWorldDay = TimeWarp.getWorldDays().stream()
-                .filter(worldDay -> worldDay.worldName.equalsIgnoreCase(worldInfo.getWorldName()))
-                .findFirst().orElse(null);
+    public void clearDayPartCache() {
+        TimeWarp.INSTANCE.logger.debug("Clearing cache type [DayPart] for world [" + ((World) this).getName() + "]");
+        this.cachedDayPart = null;
+    }
+
+    @Override
+    public void clearDayPartTypeCache() {
+        TimeWarp.INSTANCE.logger.debug("Clearing cache type [DayPartType] for world [" + ((World) this).getName() + "]");
+        this.cachedDayPartType = null;
+    }
+
+    @Override
+    public Optional<WorldDay> getCachedWorldDay() {
+        return Optional.ofNullable(this.cachedWorldDay);
+    }
+
+    @Override
+    public Optional<DayPart> getCachedDayPart() {
+        return Optional.ofNullable(this.cachedDayPart);
+    }
+
+    @Override
+    public Optional<DayPartType> getCachedDayPartType() {
+        return Optional.ofNullable(this.cachedDayPartType);
     }
 
     /**
@@ -166,7 +217,7 @@ public class MixinWorldServer implements IMixinWorldServer {
      * @return The scaled time.
      */
     private static long scale(long time, long originalStart, long originalEnd, long newStart, long newEnd) {
-        double scale = (double) (newEnd - newStart) / (originalEnd - originalStart);
+        double scale = (newEnd - newStart) / (originalEnd - originalStart);
         return (long) (newStart + ((time - originalStart) * scale));
     }
 }

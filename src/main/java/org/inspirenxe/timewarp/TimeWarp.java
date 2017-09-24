@@ -68,7 +68,6 @@ import java.util.Set;
 public class TimeWarp {
 
     private static final Set<DimensionType> SUPPORTED_DIMENSION_TYPES = Sets.newHashSet();
-    private static final Set<WorldDay> WORLD_DAYS = Sets.newHashSet();
     public static TimeWarp INSTANCE;
     public Storage storage;
     @Inject public Logger logger;
@@ -146,32 +145,23 @@ public class TimeWarp {
     public void onSleepingFinishPostEvent(SleepingEvent.Finish.Post event) {
         final Optional<World> optWorld = Sponge.getServer().getWorld(event.getBed().getWorldUniqueId());
 
-        optWorld.ifPresent(world ->
-                WORLD_DAYS.stream()
-                    .filter(worldDay -> worldDay.worldName.equalsIgnoreCase(world.getName()))
-                    .forEach(worldDay ->
-                            Sponge.getServer().getWorldProperties(event.getBed().getWorldUniqueId())
-                                    .ifPresent(worldProperties ->
-                                        worldProperties.setWorldTime((worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + worldDay
-                                                .getWakeAtDayPart().defaultStartTime + 1))));
+        if (optWorld.isPresent() && ((IMixinWorldServer) optWorld.get()).getCachedWorldDay().isPresent()) {
+            final WorldDay worldDay = ((IMixinWorldServer) optWorld.get()).getCachedWorldDay().get();
+            optWorld.get().getProperties().setWorldTime(
+                    (worldDay.getDaysPassed() * DayPartType.DEFAULT_DAY_LENGTH) + worldDay.getWakeAtDayPart().defaultStartTime + 1);
+        }
     }
 
-    /**
-     * Creates a {@link WorldDay} for every applicable world.
-     */
     private void createWorldDays() {
         // Initialize the configuration
         storage.init();
-
-        // Clear the set to ensure a fresh start.
-        WORLD_DAYS.clear();
 
         for (World world : Sponge.getServer().getWorlds()) {
             if (!TimeWarp.getSupportedDimensionTypes().contains(world.getDimension().getType())) {
                 continue;
             }
 
-            if (!Boolean.valueOf(world.getProperties().getGameRule("doDaylightCycle").get())) {
+            if (!Boolean.valueOf(world.getProperties().getGameRule("doDaylightCycle").orElse("false"))) {
                 logger.warn("Unable to warp time for [" + world.getName() + "]. Please enable the daylight cycle (/gamerule doDaylightCycle true) " +
                         "and reload TimeWarp. If this is intentional then please ignore this message.");
             }
@@ -181,16 +171,16 @@ public class TimeWarp {
 
             final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(world.getName());
             if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
-                final String rootPath = "sync.worlds." + world.getName().toLowerCase();
-                TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".enabled", false);
-                TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
+                final String worldRootPath = "sync.worlds." + world.getName().toLowerCase();
+                TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".enabled", false);
+                TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
 
                 for (DayPartType type : DayPartType.values()) {
-                    TimeWarp.INSTANCE.storage.registerDefaultNode(rootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
+                    TimeWarp.INSTANCE.storage.registerDefaultNode(worldRootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
                 }
 
-                if (TimeWarp.INSTANCE.storage.getChildNode(rootPath + ".enabled").getBoolean()) {
-                    WORLD_DAYS.add(new WorldDay(world.getName()).init());
+                if (TimeWarp.INSTANCE.storage.getChildNode(worldRootPath + ".enabled").getBoolean()) {
+                    ((IMixinWorldServer) world).clearCache();
                 }
             }
         }
@@ -204,13 +194,5 @@ public class TimeWarp {
      */
     public static Set<DimensionType> getSupportedDimensionTypes() {
         return Collections.unmodifiableSet(SUPPORTED_DIMENSION_TYPES);
-    }
-
-    /**
-     * Gets all available {@link WorldDay}s
-     * @return An unmodifiable set of all {@link WorldDay}.
-     */
-    public static Set<WorldDay> getWorldDays() {
-        return Collections.unmodifiableSet(WORLD_DAYS);
     }
 }

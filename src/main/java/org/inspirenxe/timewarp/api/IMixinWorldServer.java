@@ -24,7 +24,11 @@
  */
 package org.inspirenxe.timewarp.api;
 
-import net.minecraft.world.storage.WorldInfo;
+import org.inspirenxe.timewarp.daypart.DayPart;
+import org.inspirenxe.timewarp.daypart.DayPartType;
+import org.inspirenxe.timewarp.world.WorldDay;
+
+import java.util.Optional;
 
 public interface IMixinWorldServer {
 
@@ -46,8 +50,36 @@ public interface IMixinWorldServer {
     void clearCache();
 
     /**
-     * Updates the TimeWarp cache for this world
-     * @param worldInfo The world info for the world
+     * Clears the cached {@link WorldDay} object from this world
      */
-    void updateCache(WorldInfo worldInfo);
+    void clearWorldDayCache();
+
+    /**
+     * Clears the cached {@link DayPart} object from this world
+     */
+    void clearDayPartCache();
+
+    /**
+     * Clears the cached {@link DayPartType} object from this world
+     */
+    void clearDayPartTypeCache();
+
+    /**
+     * Gets the current {@link WorldDay} for this world
+     * @return The current world day
+     */
+    Optional<WorldDay> getCachedWorldDay();
+
+    /**
+     * Gets the current {@link DayPart} for this world
+     * @return The current day part
+     */
+    Optional<DayPart> getCachedDayPart();
+
+
+    /**
+     * Gets the current {@link DayPartType} for this world
+     * @return The current day part type
+     */
+    Optional<DayPartType> getCachedDayPartType();
 }
