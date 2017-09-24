@@ -145,7 +145,7 @@ public class MixinWorldServer implements IMixinWorldServer {
                     final long worldTime = worldProperties.getWorldTime();
                     final boolean doDaylightCycle = Boolean.valueOf(worldProperties.getGameRule("doDaylightCycle").orElse("false"));
                     ((World) this).getPlayers().forEach(player ->
-                            ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle))));
+                            ((EntityPlayerMP) player).connection.sendPacket(new SPacketTimeUpdate(totalTime, worldTime, doDaylightCycle)));
 
                     // We do not need to continue
                     return;
