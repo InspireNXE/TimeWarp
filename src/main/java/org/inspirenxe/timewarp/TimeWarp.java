@@ -167,18 +167,14 @@ public class TimeWarp {
             ((IMixinWorldServer) world).setTicksUntilNextIncrement(0L);
             ((IMixinWorldServer) world).clearCache();
 
-            final Optional<WorldProperties> optProperties = Sponge.getServer().getWorldProperties(world.getName());
-            if (optProperties.isPresent() && TimeWarp.getSupportedDimensionTypes().contains(optProperties.get().getDimensionType())) {
+            final WorldProperties worldProperties = world.getProperties();
+            if (TimeWarp.getSupportedDimensionTypes().contains(worldProperties.getDimensionType())) {
                 final String worldRootPath = "sync.worlds." + world.getName().toLowerCase();
                 TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".enabled", false);
                 TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".wake-at-daypart", DayPartType.DAY.name.toUpperCase());
 
                 for (DayPartType type : DayPartType.values()) {
                     TimeWarp.instance.storage.registerDefaultNode(worldRootPath + ".dayparts." + type.name.toLowerCase(), type.defaultLength);
-                }
-
-                if (TimeWarp.instance.storage.getChildNode(worldRootPath + ".enabled").getBoolean()) {
-                    ((IMixinWorldServer) world).clearCache();
                 }
             }
         }

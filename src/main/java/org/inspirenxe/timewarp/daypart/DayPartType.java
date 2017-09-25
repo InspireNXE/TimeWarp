@@ -32,7 +32,7 @@ import java.util.Optional;
 public enum DayPartType {
     MORNING("Morning",  1800, 23200,  1000, TextColors.YELLOW),
     DAY    ("Day",     10600,  1000, 11600, TextColors.AQUA),
-    DUSK   ("Dusk",     1400, 11600, 13000, TextColors.DARK_BLUE),
+    DUSK   ("Dusk",     1400, 11600, 13000, TextColors.BLUE),
     EVENING("Evening",  1800, 13000, 14800, TextColors.LIGHT_PURPLE),
     NIGHT  ("Night",    8400, 14800, 23200, TextColors.DARK_PURPLE);
 
@@ -59,16 +59,24 @@ public enum DayPartType {
      */
     public static Optional<DayPartType> getTypeFromTime(long time) {
         for (DayPartType type : DayPartType.values()) {
-            if (type.defaultStartTime <= type.defaultEndTime) {
-                if (time >= type.defaultStartTime && time <= type.defaultEndTime) {
-                    return Optional.of(type);
-                }
-            } else {
-                if (time <= type.defaultEndTime || time >= type.defaultStartTime) {
-                    return Optional.of(type);
-                }
+            if (isWithinTimeRange(type, time)) {
+                return Optional.of(type);
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Determines if the time is within the specified {@link DayPartType} time range
+     * @param dayPartType The day part type to check against
+     * @param time The time to check
+     * @return True if within the range, false if not
+     */
+    public static boolean isWithinTimeRange(DayPartType dayPartType, long time) {
+        if (dayPartType.defaultStartTime <= dayPartType.defaultEndTime) {
+            return time >= dayPartType.defaultStartTime && time <= dayPartType.defaultEndTime;
+        } else {
+            return time <= dayPartType.defaultEndTime || time >= dayPartType.defaultStartTime;
+        }
     }
 }

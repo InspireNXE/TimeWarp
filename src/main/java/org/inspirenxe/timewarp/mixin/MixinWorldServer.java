@@ -73,7 +73,9 @@ public class MixinWorldServer implements IMixinWorldServer {
         final WorldProperties worldProperties = (WorldProperties) worldInfo;
 
         // Update our cache if needed
-        if (this.cachedWorldDay == null) {
+        if (this.cachedWorldDay == null
+                && TimeWarp.getSupportedDimensionTypes().contains(worldProperties.getDimensionType())
+                && TimeWarp.instance.storage.getChildNode("sync.worlds." + worldInfo.getWorldName().toLowerCase() + ".enabled").getBoolean()) {
             this.cachedWorldDay = new WorldDay(worldProperties.getWorldName()).init();
         }
 
@@ -130,8 +132,7 @@ public class MixinWorldServer implements IMixinWorldServer {
 
                         this.ticksUntilIncrement = Math.abs(targetTimeScaled - currentTimeScaled);
 
-                        // Clear cache
-                        if (currentTime >= cachedDayPartType.defaultEndTime) {
+                        if (!DayPartType.isWithinTimeRange(this.cachedDayPartType, currentTime)) {
                             this.clearDayPartCache();
                             this.clearDayPartTypeCache();
                         }
@@ -170,9 +171,9 @@ public class MixinWorldServer implements IMixinWorldServer {
     @Override
     public void clearCache() {
         TimeWarp.instance.logger.debug("Clearing all cache types for world [" + ((World) this).getName() + "]");
-        this.clearWorldDayCache();
-        this.clearDayPartCache();
-        this.clearDayPartTypeCache();
+        this.cachedWorldDay = null;
+        this.cachedDayPart = null;
+        this.cachedDayPartType = null;
     }
 
     @Override
