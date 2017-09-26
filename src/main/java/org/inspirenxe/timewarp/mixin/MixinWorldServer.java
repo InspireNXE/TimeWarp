@@ -33,7 +33,6 @@ import org.inspirenxe.timewarp.api.IMixinWorldServer;
 import org.inspirenxe.timewarp.daypart.DayPart;
 import org.inspirenxe.timewarp.daypart.DayPartType;
 import org.inspirenxe.timewarp.world.WorldDay;
-import org.spongepowered.api.Sponge;
 import org.spongepowered.api.world.World;
 import org.spongepowered.api.world.storage.WorldProperties;
 import org.spongepowered.asm.mixin.Mixin;
